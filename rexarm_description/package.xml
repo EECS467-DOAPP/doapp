@@ -3,6 +3,7 @@
     <version>0.1.0</version>
     <description>URDF for the Rexarm.</description>
     <maintainer email="me@gregjm.dev">Gregory Meyer</maintainer>
+    <license>AGPL-3.0-or-later</license>
 
     <url type="repository">https://github.com/EECS467-DOAPP/doapp</url>
     <author>Gregory Meyer</author>
