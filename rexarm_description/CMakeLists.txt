@@ -9,3 +9,7 @@ catkin_package()
 install(DIRECTORY robots/
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/robots
 )
+
+install(DIRECTORY launch/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
