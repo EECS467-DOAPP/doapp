@@ -19,4 +19,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <launch>
     <param name="robot_description"
            textfile="$(find rexarm_description)/robots/rexarm.urdf"/>
+
+    <rosparam command="load" file="$(find rexarm_description)/params/rexarm_description.yaml"/>
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher"
+          type="robot_state_publisher" output="screen" clear_params="true"
+          respawn="true"/>
 </launch>
