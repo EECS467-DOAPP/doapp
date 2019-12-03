@@ -41,3 +41,34 @@ if your installation is successful, the following information should appear in t
 [ INFO] [1574126694.546787918]: Find 0 Dynamixels
 ```
 Make sure that the USB connection between your PC and the Dynamixel motors has been established.
+
+## Compiling Dynamixel Controller
+To compile Dynamixel controller, type `catkin_make` in your catkin workspace. 
+
+## Running Dynamixel Controller
+To run Dynamixel controller, run the following command in a new terminal:
+```bash
+roslaunch dynamixel_driver controller.launch
+```
+if the node is launched successfully, the motors should all be initialized to the middle point, with the following information appearing on the last few lines of terminal:
+```bash
+process[dynamixel_workbench-1]: started with pid [13281]
+[ INFO] [1575338505.590665958]: Name : base, ID : 0, Model Number : 29
+[ INFO] [1575338505.594579404]: Name : elbow, ID : 2, Model Number : 29
+[ INFO] [1575338505.596599995]: Name : gripper, ID : 5, Model Number : 12
+[ INFO] [1575338505.598533763]: Name : shoulder, ID : 1, Model Number : 29
+[ INFO] [1575338505.600563355]: Name : wrist, ID : 3, Model Number : 12
+[ INFO] [1575338505.602562169]: Name : wrist_rotate, ID : 4, Model Number : 12
+```
+
+Then, open a new terminal and run
+```bash
+rosrun dynamixel_driver controller
+```
+
+## Running Dynamixel Controller Demo
+A small demo of how to send commands to the controller in another ROS node is also provided in the source code. To run the demo, please [run Dynamixel controller first](#running-dynamixel-controller). Then, in a new terminal type:
+```bash
+rosrun dynamixel_driver controller_demo
+```
+You will see the 4th motor (counting from the base) starts to move back and forth.

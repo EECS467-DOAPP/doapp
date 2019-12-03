@@ -135,8 +135,8 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/dynamixel_driver_node.cpp)
-add_executable(dynamixel_driver src/driver.cpp src/driver_main.cpp)
-add_executable(dynamixel_driver_demo src/demo.cpp)
+add_executable(controller src/controller.cpp src/controller_main.cpp)
+add_executable(controller_demo src/demo.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -147,17 +147,17 @@ add_executable(dynamixel_driver_demo src/demo.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(dynamixel_driver dynamixel_driver_gencpp)
-add_dependencies(dynamixel_driver dynamixel_driver_generate_messages_cpp)
-add_dependencies(dynamixel_driver_demo dynamixel_driver_gencpp)
-add_dependencies(dynamixel_driver_demo dynamixel_driver_generate_messages_cpp)
+add_dependencies(controller dynamixel_driver_gencpp)
+add_dependencies(controller dynamixel_driver_generate_messages_cpp)
+add_dependencies(controller_demo dynamixel_driver_gencpp)
+add_dependencies(controller_demo dynamixel_driver_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(dynamixel_driver ${catkin_LIBRARIES})
-target_link_libraries(dynamixel_driver_demo ${catkin_LIBRARIES})
+target_link_libraries(controller ${catkin_LIBRARIES})
+target_link_libraries(controller_demo ${catkin_LIBRARIES})
 
 #############
 ## Install ##

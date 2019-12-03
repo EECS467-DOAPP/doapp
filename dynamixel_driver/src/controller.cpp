@@ -80,7 +80,7 @@ void DynamixelDriver::send() {
         srv.request.value = cmd[i].goalPosition;
 
         if (client_.call(srv)) {
-            ROS_INFO("Result: %d", srv.response.comm_result);
+            ROS_DEBUG("Result: %d", srv.response.comm_result);
         } else {
             ROS_ERROR("Failed to call service dynamixel_command");
         }
@@ -120,7 +120,7 @@ void DynamixelDriver::handleState(const dynamixel_workbench_msgs::DynamixelState
  * @param msg:  received ROS messages
  */
 void DynamixelDriver::handleCommand(const dynamixel_driver::MotorCommand& msg) {
-    ROS_INFO("Received motor command at [%d]: %d", msg.id, msg.goal);
+    ROS_DEBUG("Received command %d at [%d]: ", msg.goal, msg.id);
     set(msg.id, msg.goal);
     send();
 }

@@ -6,7 +6,7 @@
 int main(int argc, char **argv) {
     ros::init(argc, argv, "dynamixel_controller");
     DynamixelDriver driver;
-    ros::Rate loop_rate(100);
+    ros::Rate loop_rate(100);  // 100Hz loop rate
 
     // PART 1 -- Sending initialization motor commands
     driver.send();
