@@ -17,12 +17,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
 
 <launch>
-    <param name="robot_description"
-           textfile="$(find rexarm_description)/robots/rexarm.urdf"/>
+    <include file="$(find rexarm_description)/launch/rexarm_description.launch"/>
 
-    <rosparam command="load" file="$(find rexarm_description)/config/rexarm_description.yaml"/>
+    <arg name="use_gui" default="false"/>
 
-    <node name="robot_state_publisher" pkg="robot_state_publisher"
-          type="robot_state_publisher" output="screen" clear_params="true"
+    <node name="joint_state_publisher" pkg="joint_state_publisher"
+          type="joint_state_publisher" output="screen" clear_params="true"
+          required="true">
+        <param name="use_gui" value="$(arg use_gui)"/>
+    </node>
+
+    <node name="rviz" pkg="rviz" type="rviz" output="screen" clear_params="true"
+          args="--display-config $(find rexarm_description)/config/rexarm_description.rviz"
           required="true"/>
 </launch>
