@@ -1,0 +1,7 @@
+controller_list:
+  - name: fake_rexarm_controller
+    joints:
+      - shoulder_servo_joint
+      - shoulder_horn_joint
+      - elbow_horn_joint
+      - wrist_horn_joint
