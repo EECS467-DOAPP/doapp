@@ -105,7 +105,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES mapping
- CATKIN_DEPENDS occupancy_grid
+  CATKIN_DEPENDS occupancy_grid
 #  DEPENDS system_lib
 )
 
@@ -121,8 +121,8 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(${PROJECT_NAME}
-  src/mapping.cpp
+add_executable(${PROJECT_NAME}
+  src/mapping_node.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})

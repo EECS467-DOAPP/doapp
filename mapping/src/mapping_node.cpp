@@ -1,47 +1,86 @@
 #include <ros/ros.h>
-#include <nodelet/nodelet.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 
-#include <occupancy_grid/occupancy_grid.hpp>
-
-namespace doapp
+namespace
 {
 
-class MappingNode : public nodelet::Nodelet
+enum class State
 {
-public:
-    MappingNode() : Nodelet(), map_(size_, granularity_)
-    {
-    }
-
-    virtual void onInit()
-    {
-        NODELET_INFO("STARTING MAPPING NODELET");
-    }
-
-private:
-    // TODO: make nodelet argument
-    constexpr static double size_ = 1.0;
-    constexpr static double granularity_ = 0.05;
-
-    doapp::OccupancyGrid map_;
-
-    ros::Subscriber sub_;
-    ros::Publisher pub_;
-    ros::Timer timer_;
+    Calibration,
+    Mapping,
 };
 
-} // namespace doapp
+struct Extrinsics
+{
+    geometry_msgs::TransformStamped camera1_pose;
+    geometry_msgs::TransformStamped camera2_pose;
+    geometry_msgs::TransformStamped camera3_pose;
+};
 
-PLUGINLIB_EXPORT_CLASS(doapp::MappingNode, nodelet::Nodelet)
+} // namespace
 
-//                     int
-//                     main(int argc, char *argv[])
-// {
-//     ros::init(argc, argv, "doapp_mapping");
+int main(int argc, char **argv)
+{
+    ros::init(argc, argv, "Mapping");
+    ros::NodeHandle node;
+    ros::Rate loop_rate(100.0);
 
-//     ros::NodeHandle n;
+    const auto start_time = ros::Time::now();
 
-//     // ros::Publisher occupancy_grid_pub = ;
+    // Listen and publish the extrinsics
+    tf2_ros::Buffer tf_buffer;
+    tf2_ros::TransformListener listener(tf_buffer);
+    static tf2_ros::StaticTransformBroadcaster broadcaster;
 
-//     return 0;
-// }
+    Extrinsics extrinsics;
+
+    State state = State::Calibration;
+
+    // Wait for pointclouds to settle
+    ros::Duration(5.0).sleep();
+
+    size_t count = 0;
+    while (ros::ok())
+    {
+        switch (state)
+        {
+        case State::Calibration:
+        {
+            const auto uptime = ros::Time::now() - start_time;
+            const auto calibration_duration = ros::Duration(10.0);
+            if (uptime > calibration_duration)
+            {
+                ROS_ERROR("Couldn't calibrate in time.");
+                ros::shutdown();
+            }
+
+            try
+            {
+                extrinsics.camera1_pose = tf_buffer.lookupTransform("arm_base", "camera1_color_optical_frame", ros::Time(0));
+                extrinsics.camera2_pose = tf_buffer.lookupTransform("arm_base", "camera2_color_optical_frame", ros::Time(0));
+                extrinsics.camera3_pose = tf_buffer.lookupTransform("arm_base", "camera3_color_optical_frame", ros::Time(0));
+
+                ROS_INFO("Calibrated camera extrinsics");
+
+                // Change state once calibrated
+                state = State::Mapping;
+            }
+            catch (tf2::TransformException &ex)
+            {
+                ROS_WARN("%s", ex.what());
+                ros::Duration(1.0).sleep();
+                continue;
+            }
+            break;
+        }
+        case State::Mapping:
+        {
+
+            break;
+        }
+        }
+
+        count++;
+    }
+}
