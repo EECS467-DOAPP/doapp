@@ -1,8 +1,8 @@
-#ifndef TRAJECTORY_H
-#define TRAJECTORY_H
+#ifndef TRAJECTORY_CUH
+#define TRAJECTORY_CUH
 
-#include "common.h"
-#include "vector.h"
+#include "common.cuh"
+#include "vector.cuh"
 
 #include <cstddef>
 

@@ -1,1 +1,1 @@
-#include "trajectory.h"
+#include "trajectory.cuh"

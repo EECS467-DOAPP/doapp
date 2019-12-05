@@ -1,12 +1,14 @@
-#ifndef RANDOM_H
-#define RANDOM_H
+#ifndef RANDOM_CUH
+#define RANDOM_CUH
 
-#include "vector.h"
+#include "vector.cuh"
+#include "common.cuh"
 
+#include <cerrno>
+#include <climits>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <stdexcept>
+#include <system_error>
 #include <vector>
 
 #include <sys/random.h>
@@ -39,8 +41,8 @@ public:
           getrandom(write_head, static_cast<std::size_t>(last - write_head), 0);
 
       if (this_num_initialized_or_err == -1) {
-        throw std::runtime_error(
-            "Pcg32::from_randomness: getrandom returned -1");
+        throw std::system_error(errno, std::generic_category(),
+                                "doapp::Pcg32::from_randomness: getrandom");
       }
 
       write_head += this_num_initialized_or_err;
@@ -60,16 +62,45 @@ public:
     return output(old_state);
   }
 
-  __host__ __device__ double randf() noexcept {
-    const std::uint32_t upper = rand();
-    const std::uint32_t lower = rand();
+  __host__ __device__ float rand01() noexcept {
+    static constexpr std::size_t FRACTION_BITS = 23;
+    static constexpr std::size_t EXPONENT_BIAS = 127;
+    static constexpr std::size_t FLOAT_SIZE = sizeof(float) * CHAR_BIT;
+    static constexpr std::size_t PRECISION = FRACTION_BITS + 1;
+    static constexpr float SCALE = 1.0f / static_cast<float>(1_u32 << PRECISION);
 
-    const std::uint64_t combined = (static_cast<std::uint64_t>(upper) << 32) |
-                                   static_cast<std::uint64_t>(lower);
+    const std::uint32_t output = rand();
+    const std::uint32_t mantissa = output >> (FLOAT_SIZE - PRECISION);
 
-    return static_cast<double>(combined) /
-           static_cast<double>(
-               static_cast<std::uint64_t>(0xffffffffffffffffull));
+    return SCALE * static_cast<float>(mantissa + 1);
+  }
+
+  __host__ __device__ float rand11() noexcept {
+    static constexpr std::size_t FRACTION_BITS = 23;
+    static constexpr std::size_t EXPONENT_BIAS = 127;
+    static constexpr std::size_t FLOAT_SIZE = sizeof(float) * CHAR_BIT;
+    static constexpr std::size_t PRECISION = FRACTION_BITS + 1;
+    static constexpr float SCALE = 1.0f / static_cast<float>(1_u32 << PRECISION);
+
+    const std::uint32_t output = rand();
+    const std::uint32_t mantissa = output >> (FLOAT_SIZE - PRECISION);
+    const bool is_positive = (output & (1 << (FLOAT_SIZE - PRECISION - 1))) != 0;
+
+    if (is_positive) {
+      return SCALE * static_cast<float>(mantissa + 1);
+    } else {
+      return -SCALE * static_cast<float>(mantissa + 1);
+    }
+
+    /**
+     *  @param min inclusive lower bound
+     *  @param range if numbers are to be in [min, max), range is max - min
+     */
+    __host__ __device__ float rand_in_range(float min, float range) noexcept {
+      assert(range > 0);
+
+      return rand01() * range + min;
+    }
   }
 
 private:

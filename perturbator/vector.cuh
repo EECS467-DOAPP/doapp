@@ -1,15 +1,14 @@
-#ifndef VECTOR_H
-#define VECTOR_H
+#ifndef VECTOR_CUH
+#define VECTOR_CUH
 
 #include <cassert>
 #include <cstddef>
+#include <limits>
 #include <new>
-
-#include <cuda.h>
 
 namespace doapp {
 
-template <typename T, std::ptrdiff_t N> class Vector {
+template <typename T, std::size_t N> class Vector {
 public:
   __host__ __device__ T &operator[](std::size_t i) noexcept {
     assert(i < N);
@@ -23,15 +22,23 @@ public:
     return data_[i];
   }
 
-  __host__ __device__ std::size_t size() const noexcept {
-    return static_cast<std::size_t>(N);
+  __host__ __device__ constexpr std::size_t size() const noexcept {
+    return N;
+  }
+
+  __host__ __device__ T *data() noexcept {
+    return data_;
+  }
+
+  __host__ __device__ const T *data() const noexcept {
+    return data_;
   }
 
 private:
   T data_[N] = {};
 };
 
-constexpr std::ptrdiff_t Dynamic = -1;
+constexpr std::size_t Dynamic = std::numeric_limits<std::size_t>::max();
 
 template <typename T> class Vector<T, Dynamic> {
 public:
@@ -96,6 +103,14 @@ public:
   }
 
   __host__ __device__ std::size_t size() const noexcept { return len_; }
+
+  __host__ __device__ T *data() noexcept {
+    return data_;
+  }
+
+  __host__ __device__ const T *data() const noexcept {
+    return data_;
+  }
 
   void clear() {
     if (data_ && len_ > 0) {
