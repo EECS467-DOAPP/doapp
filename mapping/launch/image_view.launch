@@ -1,0 +1,18 @@
+<launch>
+  <arg name="camera1_name" default="/camera1/color" />
+  <arg name="camera2_name" default="/camera2/color" />
+  <arg name="camera3_name" default="/camera3/color" />
+  <arg name="image_topic" default="image_raw" />
+
+  <node type="image_view" name="camera1" pkg="image_view">
+      <remap from="image" to="$(arg camera1_name)/$(arg image_topic)"/>
+  </node>
+  <node type="image_view" name="camera2" pkg="image_view">
+      <remap from="image" to="$(arg camera2_name)/$(arg image_topic)"/>
+  </node>
+  <node type="image_view" name="camera3" pkg="image_view">
+      <remap from="image" to="$(arg camera3_name)/$(arg image_topic)"/>
+  </node>
+
+</launch>
+
