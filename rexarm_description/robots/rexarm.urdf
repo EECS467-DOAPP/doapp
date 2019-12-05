@@ -18,14 +18,40 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     -->
 
-    <link name="base_link"/>
-    <link name="base_servo_link"/>
-    <link name="shoulder_servo_link"/>
-    <link name="elbow_servo_link"/>
-    <link name="wrist_servo_link"/>
-    <link name="wrist_rotate_servo_link"/>
-    <link name="gripper_servo_link"/>
-    <link name="gripper_center_link"/>
+    <!-- mx-28 dimensions:
+        3.5cm short axis
+        5cm long axis
+        3cm tall (mounting plate to mounting plate)
+        1.1cm from front face to horn axis
+        1.4cm from center to horn axis -->
+
+    <material name="black">
+        <color rgba="0.0 0.0 0.0 1.0"/>
+    </material>
+
+    <link name="base_link">
+        <visual>
+            <!-- base mx-28 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.014 -0.0015 0.0565"/>
+
+            <geometry>
+                <box size="0.05 0.035 0.03"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <link name="base_servo_link">
+        <visual>
+            <!-- shoulder mx-28 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.031"/>
+
+            <geometry>
+                <box size="0.035 0.03 0.05"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
 
     <joint name="base_servo" type="continuous">
         <parent link="base_link"/>
@@ -34,12 +60,43 @@
         <axis xyz="0.0 0.0 1.0"/>
     </joint>
 
+    <link name="shoulder_servo_link">
+        <visual>
+            <!-- elbow mx-28 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.086"/>
+
+            <geometry>
+                <box size="0.035 0.03 0.05"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
     <joint name="shoulder_servo" type="continuous">
         <parent link="base_servo_link"/>
         <child link="shoulder_servo_link"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.045"/>
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
+
+    <!-- ax-12 dimensions:
+        3.2cm short axis
+        5cm long axis
+        3.1cm tall
+        1.075cm from front face to horn axis
+        1.425cm from center to horn axis -->
+
+    <link name="elbow_servo_link">
+        <visual>
+            <!-- wrist ax-12 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.08575"/>
+
+            <geometry>
+                <box size="0.032 0.031 0.05"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
 
     <joint name="elbow_servo" type="continuous">
         <parent link="shoulder_servo_link"/>
@@ -48,12 +105,36 @@
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
 
+    <link name="wrist_servo_link">
+        <visual>
+            <!-- wrist rotate ax-12 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.00175 0.0645"/>
+
+            <geometry>
+                <box size="0.032 0.05 0.031"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
     <joint name="wrist_servo" type="continuous">
         <parent link="elbow_servo_link"/>
         <child link="wrist_servo_link"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.1"/>
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
+
+    <link name="wrist_rotate_servo_link">
+        <visual>
+            <!-- gripper ax-12 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.00125 0.019"/>
+
+            <geometry>
+                <box size="0.031 0.05 0.031"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
 
     <joint name="wrist_rotate_servo" type="continuous">
         <parent link="wrist_servo_link"/>
@@ -62,12 +143,16 @@
         <axis xyz="0.0 0.0 1.0"/>
     </joint>
 
+    <link name="gripper_servo_link"/>
+
     <joint name="gripper_servo" type="continuous">
         <parent link="wrist_rotate_servo_link"/>
         <child link="gripper_servo_link"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.013 0.019"/>
         <axis xyz="1.0 0.0 0.0"/>
     </joint>
+
+    <link name="gripper_center_link"/>
 
     <joint name="gripper_center" type="fixed">
         <parent link="wrist_rotate_servo_link"/>
