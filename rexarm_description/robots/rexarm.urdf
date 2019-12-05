@@ -18,184 +18,60 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     -->
 
-    <!-- mx-28 dimensions: 3.5cm short axis, 5cm long axis, 3cm tall (mounting
-         plate to mounting plate), 1.1cm from front face to horn axis -->
-
-    <!-- ax-12 dimensions: 3.2cm short axis, 5cm long axis, 3.1cm tall, 1.075cm
-         from front face to horn axis -->
-
-    <material name="black">
-        <color rgba="0.0 0.0 0.0 1.0"/>
-    </material>
-
-    <material name="blue">
-        <color rgba="0.0 0.0 0.8 1.0"/>
-    </material>
-
-    <!-- center of the board -->
     <link name="base_link"/>
+    <link name="base_servo_link"/>
+    <link name="shoulder_servo_link"/>
+    <link name="elbow_servo_link"/>
+    <link name="wrist_servo_link"/>
+    <link name="wrist_rotate_servo_link"/>
+    <link name="gripper_servo_link"/>
+    <link name="gripper_center_link"/>
 
-    <!-- 3d printed base that the base servo sits on -->
-    <link name="base_block">
-        <visual>
-            <geometry>
-                <!-- 5cm x 4cm x 3.87cm -->
-                <box size="0.05 0.04 0.0387"/>
-            </geometry>
-            <material name="blue"/>
-        </visual>
-    </link>
-
-    <joint name="base_block_joint" type="fixed">
+    <joint name="base_servo" type="continuous">
         <parent link="base_link"/>
-        <child link="base_block"/>
-        <!-- (1.3cm, -1.5mm, 1.935cm) -->
-        <origin rpy="0.0 0.0 0.0" xyz="0.013 -0.0015 0.01935"/>
-    </joint>
-
-    <!-- base mx-28 -->
-    <link name="base_servo">
-        <visual>
-            <geometry>
-                <!-- 5cm x 3.5cm x 3cm -->
-                <box size="0.05 0.035 0.03"/>
-            </geometry>
-            <material name="black"/>
-        </visual>
-    </link>
-
-    <joint name="base_servo_joint" type="fixed">
-        <parent link="base_block"/>
-        <child link="base_servo"/>
-        <!-- (0cm, 0cm, 3.435cm) -->
-        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.03435"/>
-    </joint>
-
-    <!-- shoulder mx-28 -->
-    <link name="shoulder_servo">
-        <visual>
-            <geometry>
-                <!-- 3.5cm x 3cm x 5cm -->
-                <box size="0.035 0.03 0.05"/>
-            </geometry>
-            <material name="black"/>
-        </visual>
-    </link>
-
-    <joint name="shoulder_servo_joint" type="continuous">
-        <parent link="base_servo"/>
-        <child link="shoulder_servo"/>
-        <!-- (-1.3cm, 0cm, 1.94cm) -->
-        <origin rpy="0.0 0.0 0.0" xyz="-0.013 0.0 0.0194"/>
+        <child link="base_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.0015 0.0715"/>
         <axis xyz="0.0 0.0 1.0"/>
     </joint>
 
-    <!-- shoulder horn -->
-    <link name="shoulder_horn">
-        <visual>
-            <!-- (0, 0, 4.5cm) -->
-            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.045"/>
-
-            <geometry>
-                <!-- 3.8cm x 5.3cm x 9cm -->
-                <box size="0.038 0.053 0.09"/>
-            </geometry>
-            <material name="blue"/>
-        </visual>
-    </link>
-
-    <joint name="shoulder_horn_joint" type="continuous">
-        <parent link="shoulder_servo"/>
-        <child link="shoulder_horn"/>
-
-        <!-- (0cm, 0cm, 1.3cm) -->
-        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.013"/>
+    <joint name="shoulder_servo" type="continuous">
+        <parent link="base_servo_link"/>
+        <child link="shoulder_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.045"/>
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
 
-    <!-- elbow mx-28 -->
-    <link name="elbow_servo">
-        <visual>
-            <geometry>
-                <!-- 3.5cm x 3cm x 5cm -->
-                <box size="0.035 0.03 0.05"/>
-            </geometry>
-            <material name="black"/>
-        </visual>
-    </link>
-
-    <joint name="elbow_servo_joint" type="fixed">
-        <parent link="shoulder_horn"/>
-        <child link="elbow_servo"/>
-
-        <!-- (0cm, 0cm, 7.9cm) -->
-        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.079"/>
-    </joint>
-
-    <!-- elbow horn -->
-    <link name="elbow_horn">
-        <visual>
-            <!-- (0, 0, 4.5cm) -->
-            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.045"/>
-
-            <geometry>
-                <!-- 3.8cm x 5.3cm x 9cm -->
-                <box size="0.038 0.053 0.09"/>
-            </geometry>
-            <material name="blue"/>
-        </visual>
-    </link>
-
-    <joint name="elbow_horn_joint" type="continuous">
-        <parent link="elbow_servo"/>
-        <child link="elbow_horn"/>
-
-        <!-- (0cm, 0cm, 1.3cm) -->
-        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.013"/>
+    <joint name="elbow_servo" type="continuous">
+        <parent link="shoulder_servo_link"/>
+        <child link="elbow_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.1"/>
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
 
-    <!-- wrist ax-12 -->
-    <link name="wrist_servo">
-        <visual>
-            <geometry>
-                <!-- 3.5cm x 3cm x 5cm -->
-                <box size="0.035 0.03 0.05"/>
-            </geometry>
-            <material name="black"/>
-        </visual>
-    </link>
-
-    <joint name="wrist_servo_joint" type="fixed">
-        <parent link="elbow_horn"/>
-        <child link="wrist_servo"/>
-
-        <!-- (0cm, 0cm, 7.9cm) -->
-        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.079"/>
-    </joint>
-
-    <!-- wrist horn -->
-    <link name="wrist_horn">
-        <visual>
-            <!-- (0, 0, 2.5cm) -->
-            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.025"/>
-
-            <geometry>
-                <!-- 3.4cm x 4.9cm x 5cm -->
-                <box size="0.034 0.049 0.05"/>
-            </geometry>
-            <material name="blue"/>
-        </visual>
-    </link>
-
-    <joint name="wrist_horn_joint" type="continuous">
-        <parent link="wrist_servo"/>
-        <child link="wrist_horn"/>
-
-        <!-- (0cm, 0cm, 5.25mm) -->
-        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.00525"/>
+    <joint name="wrist_servo" type="continuous">
+        <parent link="elbow_servo_link"/>
+        <child link="wrist_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.1"/>
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
 
-    <!-- 7mm from wrist plastic mounting top to wrist rotate mounting plate -->
+    <joint name="wrist_rotate_servo" type="continuous">
+        <parent link="wrist_servo_link"/>
+        <child link="wrist_rotate_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.0125 0.08"/>
+        <axis xyz="0.0 0.0 1.0"/>
+    </joint>
+
+    <joint name="gripper_servo" type="continuous">
+        <parent link="wrist_rotate_servo_link"/>
+        <child link="gripper_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.013 0.019"/>
+        <axis xyz="1.0 0.0 0.0"/>
+    </joint>
+
+    <joint name="gripper_center" type="fixed">
+        <parent link="wrist_rotate_servo_link"/>
+        <child link="gripper_center_link"/>
+        <origin rpy="0.0 -1.5707963267948966 0.0" xyz="0.0 -0.005 0.07"/>
+    </joint>
 </robot>
