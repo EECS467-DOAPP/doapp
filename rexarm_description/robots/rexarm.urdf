@@ -25,6 +25,7 @@
     <link name="wrist_servo_link"/>
     <link name="wrist_rotate_servo_link"/>
     <link name="gripper_servo_link"/>
+    <link name="gripper_center_link"/>
 
     <joint name="base_servo" type="continuous">
         <parent link="base_link"/>
@@ -66,5 +67,11 @@
         <child link="gripper_servo_link"/>
         <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.013 0.019"/>
         <axis xyz="1.0 0.0 0.0"/>
+    </joint>
+
+    <joint name="gripper_center" type="fixed">
+        <parent link="wrist_rotate_servo_link"/>
+        <child link="gripper_center_link"/>
+        <origin rpy="0.0 -1.5707963267948966 0.0" xyz="0.0 -0.005 0.07"/>
     </joint>
 </robot>
