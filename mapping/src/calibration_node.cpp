@@ -1,10 +1,13 @@
 #include <ros/ros.h>
+#include <ros/param.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/static_transform_broadcaster.h>
+#include <yaml-cpp/yaml.h>
 
 #include <string>
 #include <sstream>
 #include <mutex>
+#include <fstream>
 
 namespace
 {
@@ -15,9 +18,7 @@ enum class State
 {
     WaitingForCamera,
     Calibration,
-    WaitingForCalibrationEnd,
-    WaitingForReboot,
-    Mapping,
+    Finished
 };
 
 State state = State::WaitingForCamera;
@@ -153,7 +154,6 @@ int main(int argc, char **argv)
                     catch (tf2::TransformException &ex)
                     {
                         calibrated = false;
-                        ROS_WARN("%s", ex.what());
                         ros::Duration(0.1).sleep();
                         continue;
                     }
@@ -162,89 +162,44 @@ int main(int argc, char **argv)
 
             if (calibrated)
             {
+                std::string file_name;
+                if (!node.getParam("extrinsics_file", file_name))
+                {
+                    ROS_ERROR("Could not get extrinsics file from parameter server");
+                }
+                ROS_INFO("Saving extrinsics to %s", file_name.c_str());
+                YAML::Emitter out;
+
+                out << YAML::BeginMap;
                 for (size_t i = 0; i < num_cameras; i++)
                 {
+                    out << YAML::Key << "camera" + std::to_string(i + 1);
+                    out << YAML::Value << YAML::BeginMap;
 
-                    node.setParam("/calibration/camera" + std::to_string(i + 1) + "/rotation/w", std::to_string(extrinsics.poses[i].rotation.w));
-                    node.setParam("/calibration/camera" + std::to_string(i + 1) + "/rotation/x", std::to_string(extrinsics.poses[i].rotation.x));
-                    node.setParam("/calibration/camera" + std::to_string(i + 1) + "/rotation/y", std::to_string(extrinsics.poses[i].rotation.y));
-                    node.setParam("/calibration/camera" + std::to_string(i + 1) + "/rotation/z", std::to_string(extrinsics.poses[i].rotation.z));
+                    out << YAML::Key << "qw" << YAML::Value << extrinsics.poses[i].rotation.w;
+                    out << YAML::Key << "qx" << YAML::Value << extrinsics.poses[i].rotation.x;
+                    out << YAML::Key << "qy" << YAML::Value << extrinsics.poses[i].rotation.y;
+                    out << YAML::Key << "qz" << YAML::Value << extrinsics.poses[i].rotation.z;
+                    out << YAML::Key << "tx" << YAML::Value << extrinsics.poses[i].translation.x;
+                    out << YAML::Key << "ty" << YAML::Value << extrinsics.poses[i].translation.y;
+                    out << YAML::Key << "tz" << YAML::Value << extrinsics.poses[i].translation.z;
 
-                    node.setParam("/calibration/camera" + std::to_string(i + 1) + "/translation/x", std::to_string(extrinsics.poses[i].translation.x));
-                    node.setParam("/calibration/camera" + std::to_string(i + 1) + "/translation/y", std::to_string(extrinsics.poses[i].translation.y));
-                    node.setParam("/calibration/camera" + std::to_string(i + 1) + "/translation/z", std::to_string(extrinsics.poses[i].translation.z));
+                    out << YAML::EndMap;
                 }
-            }
+                out << YAML::EndMap;
 
-            ROS_INFO("Set extrinsics to parameter server");
-            ros::shutdown();
+                std::ofstream fout(file_name);
+                fout << out.c_str();
 
-            break;
-        }
-        case State::WaitingForCalibrationEnd:
-        {
-            // Wait for apriltag nodes to end
-            ros::spinOnce();
-            ROS_INFO_ONCE("Waiting for calibration to end");
-            ros::Time last_empty_copy;
-            {
-                std::lock_guard<std::mutex> lock(mtx);
-                last_empty_copy = last_empty;
-            }
-
-            if (ros::Time::now() - last_empty_copy >= ros::Duration(1.0))
-            {
-                ROS_INFO_ONCE("Calibration shutdown");
-                calibration_heartbeat_sub.shutdown();
-                state = State::WaitingForReboot;
-            }
-            else
-            {
-                ros::Duration(1.0).sleep();
-            }
-            break;
-        }
-        case State::WaitingForReboot:
-        {
-
-            // Wait for cameras to launch again
-            ROS_INFO("Waiting for mapping heartbeat");
-            ros::spinOnce();
-            if (mapping_heartbeat_sub.getNumPublishers() > 0)
-            {
-                ROS_INFO("Aquired mapping heartbeat");
-
-                // Publish static transform
-                ROS_INFO("Publishing static transforms");
-                for (size_t i = 0; i < num_cameras; i++)
-                {
-                    geometry_msgs::TransformStamped static_transform;
-                    static_transform.transform = extrinsics.poses[i];
-                    static_transform.header.stamp = ros::Time::now();
-                    static_transform.header.frame_id = "arm_bundle";
-
-                    std::stringstream ss;
-                    ss << "camera" << i + 1 << "_color_optical_frame";
-                    std::string camera_frame = ss.str();
-                    static_transform.child_frame_id = camera_frame;
-                }
-
-                // Change state to mapping
-                state = State::Mapping;
-
-                mapping_heartbeat_sub.shutdown();
-            }
-            else
-            {
-                ros::Duration(1.0).sleep();
+                ROS_INFO("Saved extrinsics");
+                state = State::Finished;
             }
 
             break;
         }
-        case State::Mapping:
+        case State::Finished:
         {
-            ROS_INFO("Mapping");
-            // Publish static transforms
+            ros::Duration(1.0).sleep();
             break;
         }
         }

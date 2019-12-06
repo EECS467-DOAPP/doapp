@@ -1,0 +1,65 @@
+<launch>
+  <arg name="launch_prefix" default="" /> <!-- set to value="gdbserver localhost:10000" for remote debugging -->
+  <arg name="node1_namespace" default="apriltag_ros_continuous_node1" />
+  <arg name="node2_namespace" default="apriltag_ros_continuous_node2" />
+  <arg name="node3_namespace" default="apriltag_ros_continuous_node3" />
+  <arg name="camera1_name" default="/camera1/color" />
+  <arg name="camera2_name" default="/camera2/color" />
+  <arg name="camera3_name" default="/camera3/color" />
+  <arg name="camera1_frame" default="camera1_color_optical_frame" />
+  <arg name="camera2_frame" default="camera2_color_optical_frame" />
+  <arg name="camera3_frame" default="camera3_color_optical_frame" />
+  <arg name="image_topic" default="image_raw" />
+
+  <include file="$(find mapping)/launch/cameras.launch"></include>
+  <include file="$(find mapping)/launch/image_view.launch"></include>
+
+  <!-- Set parameters -->
+  <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml" ns="$(arg node1_namespace)" />
+  <rosparam command="load" file="$(find apriltag_ros)/config/tags.yaml" ns="$(arg node1_namespace)" />
+
+  <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml" ns="$(arg node2_namespace)" />
+  <rosparam command="load" file="$(find apriltag_ros)/config/tags.yaml" ns="$(arg node2_namespace)" />
+
+  <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml" ns="$(arg node3_namespace)" />
+  <rosparam command="load" file="$(find apriltag_ros)/config/tags.yaml" ns="$(arg node3_namespace)" />
+  
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="$(arg node1_namespace)" clear_params="true" launch-prefix="$(arg launch_prefix)" >
+    <!-- Remap topics from those used in code to those on the ROS network -->
+    <remap from="image_rect" to="$(arg camera1_name)/$(arg image_topic)" />
+    <remap from="camera_info" to="$(arg camera1_name)/camera_info" />
+
+    <param name="camera_frame" type="str" value="$(arg camera1_frame)" />
+    <param name="publish_tag_detections_image" type="bool" value="false" />      <!-- default: false -->
+  </node>
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="$(arg node2_namespace)" clear_params="true" launch-prefix="$(arg launch_prefix)" >
+    <!-- Remap topics from those used in code to those on the ROS network -->
+    <remap from="image_rect" to="$(arg camera2_name)/$(arg image_topic)" />
+    <remap from="camera_info" to="$(arg camera2_name)/camera_info" />
+
+    <param name="camera_frame" type="str" value="$(arg camera2_frame)" />
+    <param name="publish_tag_detections_image" type="bool" value="true" />      <!-- default: false -->
+  </node>
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="$(arg node3_namespace)" clear_params="true" launch-prefix="$(arg launch_prefix)" >
+    <!-- Remap topics from those used in code to those on the ROS network -->
+    <remap from="image_rect" to="$(arg camera3_name)/$(arg image_topic)" />
+    <remap from="camera_info" to="$(arg camera3_name)/camera_info" />
+
+    <param name="camera_frame" type="str" value="$(arg camera3_frame)" />
+    <param name="publish_tag_detections_image" type="bool" value="false" />      <!-- default: false -->
+  </node>
+
+  <node type="image_view" name="camera1_apriltags" pkg="image_view">
+      <remap from="image" to="/tag_detections_image"/>
+  </node>
+
+
+  <include file="$(find mapping)/launch/pointcloud_rviz.launch"></include>
+
+  <node pkg="rostopic" type="rostopic" name="heartbeat" args="pub /calibration_heartbeat std_msgs/Empty -r 10"/>
+
+  <param name="extrinsics_file" type="str" value="/home/martin/catkin_ws/src/doapp/mapping/calibration/extrinsics.yaml"/>
+  <node pkg="mapping" type="calibration_node" name="calibration_node" required="true"  output="screen">
+  </node>
+
+</launch>
