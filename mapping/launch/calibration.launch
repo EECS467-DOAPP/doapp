@@ -58,7 +58,7 @@
 
   <node pkg="rostopic" type="rostopic" name="heartbeat" args="pub /calibration_heartbeat std_msgs/Empty -r 10"/>
 
-  <param name="extrinsics_file" type="str" value="/home/martin/catkin_ws/src/doapp/mapping/calibration/extrinsics.yaml"/>
+  <param name="extrinsics_file" type="str" value="$(find mapping)/calibration/extrinsics.yaml"/>
   <node pkg="mapping" type="calibration_node" name="calibration_node" required="true"  output="screen">
   </node>
 

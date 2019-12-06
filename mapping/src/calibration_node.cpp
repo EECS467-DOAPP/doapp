@@ -189,7 +189,8 @@ int main(int argc, char **argv)
                 out << YAML::EndMap;
 
                 std::ofstream fout(file_name);
-                fout << out.c_str();
+                fout << out.c_str() << std::endl;
+                fout.close();
 
                 ROS_INFO("Saved extrinsics");
                 state = State::Finished;
