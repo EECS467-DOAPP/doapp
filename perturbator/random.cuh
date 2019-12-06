@@ -1,8 +1,8 @@
 #ifndef RANDOM_CUH
 #define RANDOM_CUH
 
-#include "vector.cuh"
 #include "common.cuh"
+#include "vector.cuh"
 
 #include <cerrno>
 #include <climits>
@@ -64,10 +64,10 @@ public:
 
   __host__ __device__ float rand01() noexcept {
     static constexpr std::size_t FRACTION_BITS = 23;
-    static constexpr std::size_t EXPONENT_BIAS = 127;
     static constexpr std::size_t FLOAT_SIZE = sizeof(float) * CHAR_BIT;
     static constexpr std::size_t PRECISION = FRACTION_BITS + 1;
-    static constexpr float SCALE = 1.0f / static_cast<float>(1_u32 << PRECISION);
+    static constexpr float SCALE =
+        1.0f / static_cast<float>(1_u32 << PRECISION);
 
     const std::uint32_t output = rand();
     const std::uint32_t mantissa = output >> (FLOAT_SIZE - PRECISION);
@@ -75,32 +75,14 @@ public:
     return SCALE * static_cast<float>(mantissa + 1);
   }
 
-  __host__ __device__ float rand11() noexcept {
-    static constexpr std::size_t FRACTION_BITS = 23;
-    static constexpr std::size_t EXPONENT_BIAS = 127;
-    static constexpr std::size_t FLOAT_SIZE = sizeof(float) * CHAR_BIT;
-    static constexpr std::size_t PRECISION = FRACTION_BITS + 1;
-    static constexpr float SCALE = 1.0f / static_cast<float>(1_u32 << PRECISION);
+  /**
+   *  @param min inclusive lower bound
+   *  @param range if numbers are to be in [min, max), range is max - min
+   */
+  __host__ __device__ float rand_in_range(float min, float range) noexcept {
+    assert(range > 0);
 
-    const std::uint32_t output = rand();
-    const std::uint32_t mantissa = output >> (FLOAT_SIZE - PRECISION);
-    const bool is_positive = (output & (1 << (FLOAT_SIZE - PRECISION - 1))) != 0;
-
-    if (is_positive) {
-      return SCALE * static_cast<float>(mantissa + 1);
-    } else {
-      return -SCALE * static_cast<float>(mantissa + 1);
-    }
-
-    /**
-     *  @param min inclusive lower bound
-     *  @param range if numbers are to be in [min, max), range is max - min
-     */
-    __host__ __device__ float rand_in_range(float min, float range) noexcept {
-      assert(range > 0);
-
-      return rand01() * range + min;
-    }
+    return rand01() * range + min;
   }
 
 private:
