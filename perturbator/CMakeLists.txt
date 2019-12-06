@@ -9,3 +9,6 @@ target_link_libraries(test_rand PRIVATE perturbator)
 
 add_executable(test test.cu)
 target_link_libraries(test PRIVATE perturbator)
+
+add_executable(main main.cu)
+target_link_libraries(main PRIVATE ${CUDA_curand_LIBRARY}) # set by the cuda package
