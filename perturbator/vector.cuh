@@ -8,8 +8,43 @@
 
 namespace doapp {
 
+template <typename T> class Slice {
+public:
+  Slice() noexcept = default;
+
+  __host__ __device__ Slice(T *data, std::size_t len) noexcept
+      : data_(data), len_(len) {}
+
+  __host__ __device__ Slice(T *data, std::size_t len,
+                            std::size_t pitch) noexcept
+      : data_(data), len_(len), pitch_(pitch) {}
+
+  __host__ __device__ T &operator[](std::size_t i) const noexcept {
+    assert(i < len_);
+
+    return data_[pitch_ * i];
+  }
+
+  __host__ __device__ std::size_t size() const noexcept { return len_; }
+
+  __host__ __device__ std::size_t pitch() const noexcept { return pitch_; }
+
+  __host__ __device__ T *data() const noexcept { return data_; }
+
+private:
+  T *data_ = nullptr;
+  std::size_t len_ = 0;
+  std::size_t pitch_ = 1;
+};
+
 template <typename T, std::size_t N> class Vector {
 public:
+  Vector() noexcept = default;
+
+  explicit Vector(std::size_t n) noexcept {
+    assert(n == N);
+  }
+
   __host__ __device__ T &operator[](std::size_t i) noexcept {
     assert(i < N);
 
@@ -22,16 +57,16 @@ public:
     return data_[i];
   }
 
-  __host__ __device__ constexpr std::size_t size() const noexcept {
-    return N;
-  }
+  __host__ __device__ std::size_t size() const noexcept { return N; }
 
-  __host__ __device__ T *data() noexcept {
-    return data_;
-  }
+  __host__ __device__ T *data() noexcept { return data_; }
 
-  __host__ __device__ const T *data() const noexcept {
-    return data_;
+  __host__ __device__ const T *data() const noexcept { return data_; }
+
+  __host__ __device__ Slice<T> as_slice() noexcept { return {data_, N}; }
+
+  __host__ __device__ Slice<const T> as_slice() const noexcept {
+    return {data_, N};
   }
 
 private:
@@ -104,12 +139,14 @@ public:
 
   __host__ __device__ std::size_t size() const noexcept { return len_; }
 
-  __host__ __device__ T *data() noexcept {
-    return data_;
-  }
+  __host__ __device__ T *data() noexcept { return data_; }
 
-  __host__ __device__ const T *data() const noexcept {
-    return data_;
+  __host__ __device__ const T *data() const noexcept { return data_; }
+
+  __host__ __device__ Slice<T> as_slice() noexcept { return {data_, len_}; }
+
+  __host__ __device__ Slice<const T> as_slice() const noexcept {
+    return {data_, len_};
   }
 
   void clear() {
