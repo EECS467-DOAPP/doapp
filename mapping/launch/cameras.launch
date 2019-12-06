@@ -22,6 +22,7 @@
       <arg name="enable_infra2"         value="false"/>
       <arg name="publish_tf"            value="true"/>
       <arg name="enable_pointcloud"     value="true"/>
+      <arg name="required"     value="true"/>
     </include>
   </group>
 
@@ -36,6 +37,7 @@
       <arg name="enable_infra2"         value="false"/>
       <arg name="publish_tf"            value="true"/>
       <arg name="enable_pointcloud"     value="true"/>
+      <arg name="required"     value="true"/>
     </include>
   </group>
 
@@ -50,6 +52,7 @@
       <arg name="enable_infra2"         value="false"/>
       <arg name="publish_tf"            value="true"/>
       <arg name="enable_pointcloud"     value="true"/>
+      <arg name="required"     value="true"/>
     </include>
   </group>
 </launch>
