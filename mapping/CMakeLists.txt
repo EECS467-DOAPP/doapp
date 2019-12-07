@@ -136,7 +136,7 @@ add_executable(calibration_node
   src/calibration_node.cpp
 )
 
-target_link_libraries(mapping_node ${catkin_LIBRARIES})
+target_link_libraries(mapping_node ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 target_link_libraries(calibration_node ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
 ## Add cmake target dependencies of the library

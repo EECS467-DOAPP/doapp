@@ -13,6 +13,5 @@
   <node type="image_view" name="camera3" pkg="image_view">
       <remap from="image" to="$(arg camera3_name)/$(arg image_topic)"/>
   </node>
-
 </launch>
 
