@@ -4,6 +4,8 @@
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <yaml-cpp/yaml.h>
 
+#include <occupancy_grid/occupancy_grid.hpp>
+
 #include <string>
 #include <sstream>
 #include <fstream>

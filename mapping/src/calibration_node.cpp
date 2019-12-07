@@ -129,12 +129,12 @@ int main(int argc, char **argv)
                         const auto pose_stamped = tf_buffer.lookupTransform("arm_bundle", "camera" + std::to_string(i + 1) + "_link", ros::Time(0));
                         extrinsics.poses[i] = pose_stamped.transform;
 
-                        ROS_INFO("Camera %d calibrated", i + 1);
+                        ROS_INFO("Camera %d calibrated", static_cast<int>(i + 1));
                     }
                     catch (tf2::TransformException &ex)
                     {
                         calibrated = false;
-                        ROS_WARN(ex.what());
+                        ROS_WARN("%s", ex.what());
                         ros::Duration(0.1).sleep();
                         continue;
                     }
