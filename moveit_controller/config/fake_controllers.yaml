@@ -1,7 +1,11 @@
 controller_list:
   - name: fake_rexarm_controller
     joints:
-      - shoulder_servo_joint
-      - shoulder_horn_joint
-      - elbow_horn_joint
-      - wrist_horn_joint
+      - base_servo
+      - shoulder_servo
+      - elbow_servo
+      - wrist_servo
+      - wrist_rotate_servo
+  - name: fake_gripper_controller
+    joints:
+      - gripper_servo

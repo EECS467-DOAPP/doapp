@@ -10,35 +10,42 @@
     <!--CHAINS: When a chain is specified, all the links along the chain (including endpoints) are included in the group. Additionally, all the joints that are parents to included links are also included. This means that joints along the chain and the parent joint of the base link are included in the group-->
     <!--SUBGROUPS: Groups can also be formed by referencing to already defined group names-->
     <group name="rexarm">
-        <joint name="base_block_joint" />
-        <joint name="base_servo_joint" />
-        <joint name="shoulder_servo_joint" />
-        <joint name="shoulder_horn_joint" />
-        <joint name="elbow_servo_joint" />
-        <joint name="elbow_horn_joint" />
-        <joint name="wrist_servo_joint" />
-        <joint name="wrist_horn_joint" />
+        <joint name="base" />
+        <joint name="base_servo" />
+        <joint name="shoulder_servo" />
+        <joint name="elbow_servo" />
+        <joint name="wrist_servo" />
+        <joint name="wrist_rotate_servo" />
+    </group>
+    <group name="gripper">
+        <joint name="gripper_center" />
+        <joint name="gripper_fingers" />
+        <joint name="gripper_servo" />
     </group>
     <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
     <group_state name="home" group="rexarm">
-        <joint name="elbow_horn_joint" value="0" />
-        <joint name="shoulder_horn_joint" value="0" />
-        <joint name="shoulder_servo_joint" value="0" />
-        <joint name="wrist_horn_joint" value="0" />
+        <joint name="base_servo" value="0" />
+        <joint name="elbow_servo" value="0" />
+        <joint name="shoulder_servo" value="0" />
+        <joint name="wrist_rotate_servo" value="0" />
+        <joint name="wrist_servo" value="0" />
     </group_state>
+    <group_state name="home" group="gripper">
+        <joint name="gripper_servo" value="0" />
+    </group_state>
+    <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
+    <end_effector name="hand" parent_link="gripper_center_link" group="gripper" />
     <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
-    <virtual_joint name="rexarm_base" type="fixed" parent_frame="world" child_link="base_link" />
+    <virtual_joint name="base" type="fixed" parent_frame="world" child_link="base_link" />
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
-    <disable_collisions link1="base_block" link2="base_servo" reason="Adjacent" />
-    <disable_collisions link1="base_block" link2="shoulder_servo" reason="Never" />
-    <disable_collisions link1="base_servo" link2="shoulder_servo" reason="Adjacent" />
-    <disable_collisions link1="elbow_horn" link2="elbow_servo" reason="Adjacent" />
-    <disable_collisions link1="elbow_horn" link2="shoulder_horn" reason="Always" />
-    <disable_collisions link1="elbow_horn" link2="wrist_horn" reason="Default" />
-    <disable_collisions link1="elbow_horn" link2="wrist_servo" reason="Adjacent" />
-    <disable_collisions link1="elbow_servo" link2="shoulder_horn" reason="Adjacent" />
-    <disable_collisions link1="elbow_servo" link2="shoulder_servo" reason="Never" />
-    <disable_collisions link1="elbow_servo" link2="wrist_servo" reason="Never" />
-    <disable_collisions link1="shoulder_horn" link2="shoulder_servo" reason="Adjacent" />
-    <disable_collisions link1="wrist_horn" link2="wrist_servo" reason="Adjacent" />
+    <disable_collisions link1="base_link" link2="base_servo_link" reason="Adjacent" />
+    <disable_collisions link1="base_servo_link" link2="shoulder_servo_link" reason="Adjacent" />
+    <disable_collisions link1="elbow_servo_link" link2="gripper_fingers_link" reason="Never" />
+    <disable_collisions link1="elbow_servo_link" link2="shoulder_servo_link" reason="Adjacent" />
+    <disable_collisions link1="elbow_servo_link" link2="wrist_rotate_servo_link" reason="Never" />
+    <disable_collisions link1="elbow_servo_link" link2="wrist_servo_link" reason="Adjacent" />
+    <disable_collisions link1="gripper_fingers_link" link2="wrist_rotate_servo_link" reason="Adjacent" />
+    <disable_collisions link1="gripper_fingers_link" link2="wrist_servo_link" reason="Never" />
+    <disable_collisions link1="gripper_servo_link" link2="wrist_rotate_servo_link" reason="Adjacent" />
+    <disable_collisions link1="wrist_rotate_servo_link" link2="wrist_servo_link" reason="Adjacent" />
 </robot>
