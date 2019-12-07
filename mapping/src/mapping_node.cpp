@@ -114,6 +114,22 @@ int main(int argc, char **argv)
     ros::Time start_time(0);
     ros::Subscriber heartbeat_sub = node.subscribe("/mapping_heartbeat", 10, &empty_callback);
 
+    // Publish static transforms
+    const auto now = ros::Time::now();
+    for (size_t i = 0; i < num_cameras; i++)
+    {
+        geometry_msgs::TransformStamped static_transform;
+        static_transform.header.frame_id = "arm_bundle";
+        static_transform.header.stamp = now;
+
+        static_transform.transform = extrinsics.poses[i];
+
+        std::string camera_frame = "camera" + std::to_string(i + 1) + "_link";
+        static_transform.child_frame_id = camera_frame;
+
+        broadcaster.sendTransform(static_transform);
+    }
+
     size_t count = 0;
     while (ros::ok())
     {
@@ -135,22 +151,6 @@ int main(int argc, char **argv)
                 ROS_INFO("Switching to state Mapping");
                 state = State::Mapping;
 
-                // Publish static transforms
-                const auto now = ros::Time::now();
-                for (size_t i = 0; i < num_cameras; i++)
-                {
-                    geometry_msgs::TransformStamped static_transform;
-                    static_transform.header.frame_id = "arm_bundle";
-                    static_transform.header.stamp = now;
-
-                    static_transform.transform = extrinsics.poses[i];
-
-                    std::string camera_frame = "camera" + std::to_string(i + 1) + "_link";
-                    static_transform.child_frame_id = camera_frame;
-
-                    broadcaster.sendTransform(static_transform);
-                }
-
                 start_time = ros::Time::now();
             }
             else
@@ -161,30 +161,7 @@ int main(int argc, char **argv)
         }
         case State::Mapping:
         {
-            // Publish transforms to fix pointclouds
-            if (publish_tf)
-            {
-                const auto now = ros::Time::now();
-                for (size_t i = 0; i < num_cameras; i++)
-                {
-                    geometry_msgs::TransformStamped transform;
-                    transform.header.frame_id = "arm_bundle";
-                    transform.header.stamp = now;
-
-                    transform.transform = extrinsics.poses[i];
-
-                    std::stringstream ss;
-                    ss << "camera" << i + 1 << "_color_optical_frame";
-                    std::string camera_frame = ss.str();
-                    transform.child_frame_id = camera_frame;
-
-                    br.sendTransform(transform);
-                }
-            }
-
-            // ROS_INFO("Mapping");
-            ros::Duration(0.05).sleep();
-            // Publish static transforms
+            ROS_INFO("Mapping");
             break;
         }
         }
