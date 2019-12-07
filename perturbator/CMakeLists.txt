@@ -21,3 +21,5 @@ add_executable(test_trajectory_gen generate_trajectories.test.cu)
 set_target_properties(test_trajectory_gen PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(test_trajectory_gen PRIVATE trajectory_gen ${CUDA_curand_LIBRARY})
 target_compile_options(test_trajectory_gen PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:--generate-line-info>)
+
+add_executable(device_query device_query.cu)
