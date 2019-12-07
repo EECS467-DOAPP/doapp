@@ -6,7 +6,7 @@
 
 //wrapper around device function initalize_trajectories to be unit testable
 __global__ void init_traject_kernel(unsigned int num_waypoints, unsigned int waypoint_dim, curandState* rngs, unsigned int num_rngs_per_block, float* all_trajectories) {
-    float* trajectories_for_my_block = all_trajectories + (blockDim.x * num_waypoints * waypoint_dim);
+    float* trajectories_for_my_block = all_trajectories + (blockIdx.x * num_waypoints * waypoint_dim);
     curandState* my_rng = threadIdx.x < num_rngs_per_block ? rngs+(blockIdx.x*num_rngs_per_block+threadIdx.x) : nullptr;
     initalize_trajectories(num_waypoints, waypoint_dim, my_rng, trajectories_for_my_block);
 }
@@ -19,7 +19,7 @@ __global__ void gen_noise(unsigned int num_noise_vectors, unsigned int noise_vec
 }
 
 int main(int argc, char** argv) {
-    unsigned int k = 10, n = 50, m = 25, d = 6;
+    unsigned int k = 10, n = 25, m = 6, d = 6;
     if(argc > 2) {
         if(argv[1] == std::string("-h") || argv[1] == std::string("--help")) {
             std::cout << "Usage: " << argv[0] << " [-n <num_waypoints> | -k <num_trajectories> | -m <num_noise_vectors>] [-n <num_waypoints> | -k <num_trajectories> | -m <num_noise_vectors>] [-n <num_waypoints> | -k <num_trajectories> | -m <num_noise_vectors>]" << std::endl;
@@ -63,7 +63,9 @@ int main(int argc, char** argv) {
     float *host_noise_vectors = new float[k*m*d];
     float *host_noisy_trajectories = new float[k*m*n*d];
 
-    init_cudarand<<<ceil(double(num_rngs)/1024.0), 1024>>>(dev_rngs, num_rngs);
+    dim3 num_blocks(ceil(double(num_rngs)/1024.0));
+    dim3 num_threads(1024);
+    init_cudarand<<<num_blocks, num_threads>>>(dev_rngs, num_rngs);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
     dim3 gridDim(k);
