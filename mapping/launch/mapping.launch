@@ -1,3 +1,36 @@
 <launch>
-  <node type="mapping" name="mapping" pkg="mapping" required="true"  output="screen"></node>
+  <arg name="launch_prefix" default="" /> <!-- set to value="gdbserver localhost:10000" for remote debugging -->
+  <arg name="node1_namespace" default="apriltag_ros_continuous_node1" />
+  <arg name="node2_namespace" default="apriltag_ros_continuous_node2" />
+  <arg name="node3_namespace" default="apriltag_ros_continuous_node3" />
+  <arg name="camera1_name" default="/camera1/color" />
+  <arg name="camera2_name" default="/camera2/color" />
+  <arg name="camera3_name" default="/camera3/color" />
+  <arg name="camera1_frame" default="camera1_color_optical_frame" />
+  <arg name="camera2_frame" default="camera2_color_optical_frame" />
+  <arg name="camera3_frame" default="camera3_color_optical_frame" />
+  <arg name="image_topic" default="image_raw" />
+  <arg name="publish_pointclouds" default="false" />
+
+  <include file="$(find mapping)/launch/image_view.launch"></include>
+  <node pkg="rostopic" type="rostopic" name="heartbeat" args="pub /mapping_heartbeat std_msgs/Empty -r 10" output="screen"/>
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find mapping)/rviz/mapping.rviz" ></node>
+  <include file="$(find mapping)/launch/cameras.launch">
+    <arg name="publish_pointclouds" value="$(arg publish_pointclouds)"/>
+  </include>
+
+  <!-- Set parameters -->
+  <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml" ns="$(arg node1_namespace)" />
+  <rosparam command="load" file="$(find apriltag_ros)/config/tags.yaml" ns="$(arg node1_namespace)" />
+
+  <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml" ns="$(arg node2_namespace)" />
+  <rosparam command="load" file="$(find apriltag_ros)/config/tags.yaml" ns="$(arg node2_namespace)" />
+
+  <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml" ns="$(arg node3_namespace)" />
+  <rosparam command="load" file="$(find apriltag_ros)/config/tags.yaml" ns="$(arg node3_namespace)" />
+  
+  <param name="publish_pointclouds" type="bool" value="$(arg publish_pointclouds)"/>
+  <param name="extrinsics_file" type="str" value="$(find mapping)/calibration/extrinsics.yaml"/>
+  <node pkg="mapping" type="mapping_node" name="mapping" required="true"  output="screen"></node>
+
 </launch>

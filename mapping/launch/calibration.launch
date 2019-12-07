@@ -11,8 +11,11 @@
   <arg name="camera3_frame" default="camera3_color_optical_frame" />
   <arg name="image_topic" default="image_raw" />
 
-  <include file="$(find mapping)/launch/cameras.launch"></include>
+  <include file="$(find mapping)/launch/cameras.launch">
+    <arg name="publish_pointclouds" value="true"/>
+  </include>
   <include file="$(find mapping)/launch/image_view.launch"></include>
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find mapping)/rviz/calibration.rviz" ></node>
 
   <!-- Set parameters -->
   <rosparam command="load" file="$(find apriltag_ros)/config/settings.yaml" ns="$(arg node1_namespace)" />
@@ -52,9 +55,6 @@
   <node type="image_view" name="camera1_apriltags" pkg="image_view">
       <remap from="image" to="/tag_detections_image"/>
   </node>
-
-
-  <include file="$(find mapping)/launch/pointcloud_rviz.launch"></include>
 
   <node pkg="rostopic" type="rostopic" name="heartbeat" args="pub /calibration_heartbeat std_msgs/Empty -r 10"/>
 

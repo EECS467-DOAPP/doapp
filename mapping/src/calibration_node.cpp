@@ -6,7 +6,6 @@
 
 #include <string>
 #include <sstream>
-#include <mutex>
 #include <fstream>
 
 namespace
@@ -67,13 +66,8 @@ struct Extrinsics
     }
 };
 
-std::mutex mtx;
-ros::Time last_empty(0);
-
 void empty_callback(const std_msgs::Empty::Ptr &msg)
 {
-    std::lock_guard<std::mutex> lock(mtx);
-    last_empty = ros::Time::now();
 }
 
 } // namespace
@@ -92,8 +86,7 @@ int main(int argc, char **argv)
     Extrinsics extrinsics;
 
     ros::Time start_time(0);
-    ros::Subscriber calibration_heartbeat_sub = node.subscribe("/calibration_heartbeat", 10, &empty_callback);
-    ros::Subscriber mapping_heartbeat_sub = node.subscribe("/mapping_heartbeat", 10, &empty_callback);
+    ros::Subscriber heartbeat_sub = node.subscribe("/calibration_heartbeat", 10, &empty_callback);
 
     size_t count = 0;
     while (ros::ok())
@@ -104,7 +97,7 @@ int main(int argc, char **argv)
         {
             ROS_INFO("Waiting for calibration heartbeat");
             ros::spinOnce();
-            if (calibration_heartbeat_sub.getNumPublishers() > 0)
+            if (heartbeat_sub.getNumPublishers() > 0)
             {
                 ROS_INFO("Aquired calibration heartbeat");
                 ROS_INFO("Waiting for pointclouds to settle.");
@@ -126,15 +119,6 @@ int main(int argc, char **argv)
         }
         case State::Calibration:
         {
-            ros::spinOnce();
-            const auto uptime = ros::Time::now() - start_time;
-            const auto calibration_duration = ros::Duration(30.0);
-            if (uptime > calibration_duration)
-            {
-                ROS_ERROR("CALIBRATION FAILED! Couldn't calibrate in time.");
-                ros::shutdown();
-            }
-
             bool calibrated = true;
             for (size_t i = 0; i < num_cameras; i++)
             {
@@ -142,11 +126,7 @@ int main(int argc, char **argv)
                 {
                     try
                     {
-                        std::stringstream ss;
-                        ss << "camera" << i + 1 << "_color_optical_frame";
-                        std::string camera_frame = ss.str();
-
-                        const auto pose_stamped = tf_buffer.lookupTransform("arm_bundle", camera_frame, ros::Time(0));
+                        const auto pose_stamped = tf_buffer.lookupTransform("arm_bundle", "camera" + std::to_string(i + 1) + "_link", ros::Time(0));
                         extrinsics.poses[i] = pose_stamped.transform;
 
                         ROS_INFO("Camera %d calibrated", i + 1);
@@ -154,6 +134,7 @@ int main(int argc, char **argv)
                     catch (tf2::TransformException &ex)
                     {
                         calibrated = false;
+                        ROS_WARN(ex.what());
                         ros::Duration(0.1).sleep();
                         continue;
                     }
@@ -200,6 +181,7 @@ int main(int argc, char **argv)
         }
         case State::Finished:
         {
+            ROS_INFO_ONCE("Calibration finished. You may exit now.");
             ros::Duration(1.0).sleep();
             break;
         }
