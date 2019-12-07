@@ -1,3 +1,5 @@
+#include "common.cuh"
+
 #include <cuda.h>
 #include <curand_kernel.h>
 

@@ -1,9 +1,9 @@
 #include "generate_trajectories.cuh"
-#include <cfloat>
+#include "common.cuh"
 #include <cassert>
 
 __device__ unsigned int getTid();
-__device__ float getRandFloat(curandState& state);
+__device__ float getRandFloat(curandState& state, float min, float max);
 
 __global__ void init_cudarand(curandState* states, unsigned int num_rngs) {
     unsigned int tid = getTid();
@@ -16,14 +16,14 @@ __global__ void init_cudarand(curandState* states, unsigned int num_rngs) {
 __device__ void initalize_trajectories(unsigned int num_waypoints, unsigned int waypoint_dim, curandState* rng, float* trajectories) {
     if(threadIdx.x < num_waypoints*waypoint_dim) {
             assert(rng);
-            trajectories[threadIdx.x] = getRandFloat(*rng);
+            trajectories[threadIdx.x] = getRandFloat(*rng, doapp::min_joint_angles[threadIdx.x % waypoint_dim], doapp::max_joint_angles[threadIdx.x % waypoint_dim]);
     }
 }
 
 __device__ void generate_noise_vectors(unsigned int num_noise_vectors, unsigned int noise_vector_dim, float* noise_vectors, curandState* rng) {
     if(threadIdx.x < num_noise_vectors*noise_vector_dim) {
         assert(rng);
-        noise_vectors[threadIdx.x] = getRandFloat(*rng);
+        noise_vectors[threadIdx.x] = getRandFloat(*rng, doapp::min_joint_angles[threadIdx.x % noise_vector_dim], doapp::max_joint_angles[threadIdx.x % noise_vector_dim]);
     }
 }
 
@@ -46,6 +46,6 @@ __device__ unsigned int getTid() {
     return threadIdx.x + blockIdx.x*blockDim.x;
 }
 
-__device__ float getRandFloat(curandState& state) {
-    return curand_uniform(&state) * FLT_MAX;
+__device__ float getRandFloat(curandState& state, float min, float max) {
+    return curand_uniform(&state) * (max - min + 0.999999) + min;
 }
