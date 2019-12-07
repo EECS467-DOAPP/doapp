@@ -34,6 +34,14 @@ __device__ void compute_noisy_trajectories(unsigned int num_noise_vectors, unsig
     }
 }
 
+__global__ void optimize_trajectories(float* trajectories, float* noise_vectors, float* noisy_trajectories, curandState* states, unsigned int num_rngs_per_trajectory, unsigned int num_waypoints, unsigned int waypoint_dim, unsigned int num_noise_vectors) {
+    curandState* rng = threadIdx.x < num_rngs_per_trajectory ? states + (threadIdx.x + blockIdx.x*num_rngs_per_trajectory) : nullptr;
+    //TODO: have a shared memory slice of everything read/written to for better access timing
+    initalize_trajectories(num_waypoints, waypoint_dim, rng, trajectories);
+    generate_noise_vectors(num_noise_vectors, waypoint_dim, noise_vectors, rng);
+    compute_noisy_trajectories(num_noise_vectors, waypoint_dim, num_waypoints, noise_vectors, trajectories, noisy_trajectories);
+}
+
 __device__ unsigned int getTid() {
     return threadIdx.x + blockIdx.x*blockDim.x;
 }

@@ -1,8 +1,11 @@
 #include "generate_trajectories.cuh"
 #include "gpu_error_check.cuh"
 
+#include <algorithm>
+#include <functional>
 #include <string>
 #include <iostream>
+#include <vector>
 
 //wrapper around device function initalize_trajectories to be unit testable
 __global__ void init_traject_kernel(unsigned int num_waypoints, unsigned int waypoint_dim, curandState* rngs, unsigned int num_rngs_per_block, float* all_trajectories) {
@@ -59,9 +62,10 @@ int main(int argc, char** argv) {
     gpuErrchk(cudaMalloc(&dev_noisy_trajectories, k*m*n*d*sizeof(float)));
     gpuErrchk(cudaMalloc(&dev_rngs, num_rngs * sizeof(curandState)));
 
-    float *host_trajectories = new float[k*n*d];
-    float *host_noise_vectors = new float[k*m*d];
-    float *host_noisy_trajectories = new float[k*m*n*d];
+
+    std::vector<float> host_trajectories(k*n*d);
+    std::vector<float> host_noise_vectors(k*m*d);
+    std::vector<float> host_noisy_trajectories(k*m*n*d);
 
     dim3 num_blocks(ceil(double(num_rngs)/1024.0));
     dim3 num_threads(1024);
@@ -73,9 +77,55 @@ int main(int argc, char** argv) {
     init_traject_kernel<<<gridDim, blockDim>>>(n, d, dev_rngs, d*n, dev_trajectories);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
-    gpuErrchk(cudaMemcpy(host_trajectories, dev_trajectories, k*n*d*sizeof(float), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(host_trajectories.data(), dev_trajectories, k*n*d*sizeof(float), cudaMemcpyDeviceToHost));
     gen_noise<<<gridDim, blockDim>>>(m, d, dev_noise_vectors, dev_rngs, d*m);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
-    gpuErrchk(cudaMemcpy(host_noise_vectors, dev_noise_vectors, k*m*d*sizeof(float), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(host_noise_vectors.data(), dev_noise_vectors, k*m*d*sizeof(float), cudaMemcpyDeviceToHost));
+
+    for(unsigned int traj = 0; traj < k; ++traj) {
+        for(unsigned int noise = 0; noise < m; ++noise) {
+            for(unsigned int waypoint = 0; waypoint < n; ++waypoint) {
+                for(unsigned int dim = 0; dim < d; ++dim) {
+                    host_noisy_trajectories[traj * (m*n*d) + noise*(n*d) + waypoint*d + d] = host_trajectories[traj*(n*d) + waypoint*d + dim] + host_noise_vectors[traj*m*d + noise*d + dim];
+                }
+            }
+        }
+    }
+
+
+    //reset the cudarand state should reset the rngs to the start of whatever sequence they were on
+    init_cudarand<<<num_blocks, num_threads>>>(dev_rngs, num_rngs);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+    optimize_trajectories<<<gridDim, blockDim>>>(dev_trajectories, dev_noise_vectors, dev_noisy_trajectories, dev_rngs, d*std::max(n,m), n, d, m);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+    std::vector<float> kernel_trajectories(k*n*d);
+    std::vector<float> kernel_noise_vectors(k*m*d);
+    std::vector<float> kernel_noisy_trajectories(k*m*n*d);
+    gpuErrchk(cudaMemcpy(kernel_trajectories.data(), dev_trajectories, k*n*d*sizeof(float), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(kernel_noise_vectors.data(), dev_noise_vectors, k*m*d*sizeof(float), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(kernel_noisy_trajectories.data(), dev_noisy_trajectories, kernel_noisy_trajectories.size() * sizeof(float), cudaMemcpyDeviceToHost));
+    std::function<bool (float, float)> floatCompare = [](float lhs, float rhs) {
+        return std::abs(rhs - lhs) < 0.001f;
+    };
+    if(std::equal(kernel_trajectories.begin(), kernel_trajectories.end(), host_trajectories.begin(), floatCompare)) {
+        std::cout << "Trajectories do not match!" << std::endl;
+    }
+    if(std::equal(kernel_noise_vectors.begin(), kernel_noise_vectors.end(), host_noise_vectors.begin(), floatCompare)) {
+        std::cout << "noise vectors do not match!" << std::endl;
+    }
+    bool passed = false;
+    if(std::equal(kernel_noisy_trajectories.begin(), kernel_noisy_trajectories.end(), host_noisy_trajectories.begin(), floatCompare)) {
+        std::cout << "They are not equal!" << std::endl;
+    } else {
+        std::cout << "Passed!" << std::endl;
+        passed = true;
+    }
+    cudaFree(dev_trajectories);
+    cudaFree(dev_noise_vectors);
+    cudaFree(dev_noisy_trajectories);
+    cudaFree(dev_rngs);
+    return passed;
 }
