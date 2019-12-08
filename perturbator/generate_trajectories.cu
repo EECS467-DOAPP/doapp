@@ -36,7 +36,25 @@ __device__ void compute_noisy_trajectories(unsigned int num_noise_vectors, unsig
     }
 }
 
-__device__ void score_noisy_trajectories(float* noisy_trajectories, unsigned int num_noisy_trajectories, unsigned int num_waypoints, unsigned int waypoint_dim, float* scores, float* accelerations) {
+__device__ void score_noisy_trajectories(float* noisy_trajectories, unsigned int num_noisy_trajectories, unsigned int num_waypoints, unsigned int waypoint_dim, float* scores, float* accelerations, float* smoothness) {
+    //initalize values
+    if(threadIdx.x < num_noisy_trajectories) {
+        scores[threadIdx.x] = 0;
+        smoothness[threadIdx.x] = 0;
+    }
+    __syncthreads();
+    //compute sum of squared accelerations
+    if(threadIdx.x < num_noisy_trajectories*num_waypoints*waypoint_dim) {
+        unsigned int trajectory = threadIdx.x / (num_waypoints*waypoint_dim);
+        atomicAdd(smoothness + trajectory, accelerations[threadIdx.x] * accelerations[threadIdx.x]);
+    }
+    __syncthreads();
+    //multiply by factor of 1/2
+    if(threadIdx.x < num_noisy_trajectories) {
+        smoothness[threadIdx.x] *= 0.5f;
+    }
+    __syncthreads();
+    //compute cost due to collisions
     float waypoint[doapp::num_joints];
     if(threadIdx.x < num_noisy_trajectories*num_waypoints) {
         //load waypoint. TODO: first transpose noisy_trajectories such that accesses are coalesced. This should result in a decent speedup
@@ -45,18 +63,27 @@ __device__ void score_noisy_trajectories(float* noisy_trajectories, unsigned int
         for(unsigned int i = 0; i < waypoint_dim; ++i) {
             waypoint[i] = noisy_trajectories[trajectory*num_waypoints*waypoint_dim + waypoint_index*waypoint_dim + i]; //currently, memory accesses between threads are strided by waypoint_dim (AKA not coalesced), and that is not good
         }
-        float waypoint_cost = 1/2 * accelerations[trajectory] + num_collisions(waypoint, doapp::num_joints); //TODO: put in a term about violating joint limits
+        float waypoint_cost = num_collisions(waypoint, doapp::num_joints);
         atomicAdd(scores + trajectory, waypoint_cost); //could do a list reduction, but like, this is one line that does the same thing
     }
+    __syncthreads();
+    //add smoothness cost
+    if(threadIdx.x < num_noisy_trajectories) {
+        smoothness[threadIdx.x] *= 0.5f;
+        scores[threadIdx.x] = smoothness[threadIdx.x];
+    }
+    //TODO: put in a term about violating joint limits
 }
 
-__global__ void optimize_trajectories(float* trajectories, float* noise_vectors, float* noisy_trajectories, curandState* states, float* velocities, float* accelerations, unsigned int num_rngs_per_trajectory, unsigned int num_waypoints, unsigned int waypoint_dim, unsigned int num_noise_vectors, float deltaT) {
+__global__ void optimize_trajectories(float* trajectories, float* noise_vectors, float* noisy_trajectories, curandState* states, float* velocities, float* accelerations, float* smoothness, float* scores, unsigned int num_rngs_per_trajectory, unsigned int num_waypoints, unsigned int waypoint_dim, unsigned int num_noise_vectors, float deltaT) {
     curandState* rng = threadIdx.x < num_rngs_per_trajectory ? states + (threadIdx.x + blockIdx.x*num_rngs_per_trajectory) : nullptr;
     float* block_trajectories = trajectories + blockIdx.x*num_waypoints*waypoint_dim;
     float* block_noise_vectors = noise_vectors + blockIdx.x*num_noise_vectors*waypoint_dim;
     float* block_noisy_trajectories = noisy_trajectories + blockIdx.x*num_noise_vectors*num_waypoints*waypoint_dim;
     float* block_velocities = velocities + blockIdx.x*num_noise_vectors*num_waypoints*waypoint_dim;
     float* block_accelerations = accelerations + blockIdx.x*num_noise_vectors*num_waypoints*waypoint_dim;
+    float* block_smoothness = smoothness + blockIdx.x*num_noise_vectors;
+    float* block_scores = scores + blockIdx.x*num_noise_vectors;
     //TODO: have a shared memory slice of everything read/written to for better access timing
     initalize_trajectories(num_waypoints, waypoint_dim, rng, block_trajectories);
     __syncthreads();
@@ -68,6 +95,8 @@ __global__ void optimize_trajectories(float* trajectories, float* noise_vectors,
     __syncthreads();
     compute_acceleration(block_velocities, num_noise_vectors, num_waypoints, waypoint_dim, deltaT, block_accelerations);
     //TODO: do a list reduction on accelerations (all threads in a block participate) but instead of just adding them, square individual terms first
+    __syncthreads();
+    score_noisy_trajectories(block_noisy_trajectories, num_noise_vectors, num_waypoints, waypoint_dim, block_scores, block_accelerations, block_smoothness);
 }
 
 __device__ void compute_acceleration(float* velocity, unsigned int num_noisy_trajectories, unsigned int num_waypoints, unsigned waypoint_dim, float deltaT, float* output) {

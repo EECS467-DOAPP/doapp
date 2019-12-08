@@ -21,11 +21,6 @@ void take_derivative(float inital[], float final[], float trajectory[], unsigned
             output[waypoint*waypoint_dim + dim] = (current_val - prior_val) / deltaT;
         }
     }
-    /* shouldn't compute velocity by looking forward for last waypoint
-    for(unsigned int dim = 0; dim < waypoint_dim; ++dim) {
-        output[(num_waypoints-1)*waypoint_dim + dim] = (final[dim] - trajectory[(num_waypoints-1)*waypoint_dim + dim]) / deltaT;
-    }
-    */
 }
 
 //wrapper around device function initalize_trajectories to be unit testable
@@ -82,7 +77,7 @@ int main(int argc, char** argv) {
     }
     std::cout << "Running test with k = " << k << ", n = " << n << ", m = " << m << ", verbose: " << verbose << std::endl;
     unsigned int num_rngs = k*d*std::max(n,m);
-    float *dev_trajectories, *dev_noise_vectors, *dev_noisy_trajectories, *dev_velocities, *dev_accelerations;
+    float *dev_trajectories, *dev_noise_vectors, *dev_noisy_trajectories, *dev_velocities, *dev_accelerations, *dev_smoothness, *dev_scores;
     curandState* dev_rngs;
     gpuErrchk(cudaMemcpyToSymbol(initial_waypoint, initial_point.data(), initial_point.size() * sizeof(float), 0, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpyToSymbol(final_waypoint, final_point.data(), final_point.size() * sizeof(float), 0, cudaMemcpyHostToDevice));
@@ -92,6 +87,8 @@ int main(int argc, char** argv) {
     gpuErrchk(cudaMalloc(&dev_rngs, num_rngs * sizeof(curandState)));
     gpuErrchk(cudaMalloc(&dev_velocities, k*m*n*d*sizeof(float)));
     gpuErrchk(cudaMalloc(&dev_accelerations, k*m*n*d*sizeof(float)));
+    gpuErrchk(cudaMalloc(&dev_smoothness, k*m*sizeof(float)));
+    gpuErrchk(cudaMalloc(&dev_scores, k*m*sizeof(float)));
 
 
     std::vector<float> host_trajectories(k*n*d);
@@ -99,6 +96,8 @@ int main(int argc, char** argv) {
     std::vector<float> host_noisy_trajectories(k*m*n*d);
     std::vector<float> host_velocities(k*m*n*d);
     std::vector<float> host_accelerations(k*m*n*d);
+    std::vector<float> host_smoothness(k*m);
+    std::vector<float> host_scores(k*m);
 
     dim3 num_threads(512);
     dim3 num_blocks(ceil(double(num_rngs)/num_threads.x));
@@ -116,6 +115,7 @@ int main(int argc, char** argv) {
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk(cudaMemcpy(host_noise_vectors.data(), dev_noise_vectors, k*m*d*sizeof(float), cudaMemcpyDeviceToHost));
 
+    //given inital trajectories and noise vectors, compute noisy trajectories
     for(unsigned int traj = 0; traj < k; ++traj) {
         for(unsigned int noise = 0; noise < m; ++noise) {
             for(unsigned int waypoint = 0; waypoint < n; ++waypoint) {
@@ -125,18 +125,33 @@ int main(int argc, char** argv) {
             }
         }
     }
+    //compute joint velocities for each noisy trajectory
     for(unsigned int i = 0; i < k*m; ++i) {
         take_derivative(initial_point.data(), final_point.data(), host_noisy_trajectories.data() + i*n*d, d, n, deltaT, host_velocities.data() + i*n*d);
     }
+    //compute joint accelerations for each noisy trajectory
     for(unsigned int i = 0; i < k*m; ++i) {
         take_derivative(initial_point.data(), final_point.data(), host_velocities.data() + i*n*d, d, n, deltaT, host_accelerations.data() + i*n*d);
     }
+    //compute smoothness score for each trajectory
+    for(unsigned int traj = 0; traj < k*m; ++traj) {
+        host_smoothness[traj] = 0;
+        for(unsigned int waypoint = 0; waypoint < n; ++waypoint) {
+            for(unsigned int dim = 0; dim < d; ++dim) {
+                host_smoothness[traj] += host_accelerations[traj*n*d + waypoint*d + dim] * host_accelerations[traj*n*d + waypoint*d + dim];
+            }
+        }
+        host_smoothness[traj] *= 0.5;
+    }
+    //score each trajectory
+    //TODO: host collision detection?
+    std::copy(host_smoothness.begin(), host_smoothness.end(), host_scores.begin());
 
     //reset the cudarand state should reset the rngs to the start of whatever sequence they were on
     init_cudarand<<<num_blocks, num_threads>>>(dev_rngs, num_rngs);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
-    optimize_trajectories<<<gridDim, blockDim>>>(dev_trajectories, dev_noise_vectors, dev_noisy_trajectories, dev_rngs, dev_velocities, dev_accelerations, d*std::max(n,m), n, d, m, deltaT);
+    optimize_trajectories<<<gridDim, blockDim>>>(dev_trajectories, dev_noise_vectors, dev_noisy_trajectories, dev_rngs, dev_velocities, dev_accelerations, dev_smoothness, dev_scores, d*std::max(n,m), n, d, m, deltaT);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
     std::vector<float> kernel_trajectories(k*n*d);
@@ -144,11 +159,15 @@ int main(int argc, char** argv) {
     std::vector<float> kernel_noisy_trajectories(k*m*n*d);
     std::vector<float> kernel_velocities(k*m*n*d);
     std::vector<float> kernel_accelerations(k*m*n*d);
+    std::vector<float> kernel_smoothness(k*m);
+    std::vector<float> kernel_scores(k*m);
     gpuErrchk(cudaMemcpy(kernel_trajectories.data(), dev_trajectories, k*n*d*sizeof(float), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(kernel_noise_vectors.data(), dev_noise_vectors, k*m*d*sizeof(float), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(kernel_noisy_trajectories.data(), dev_noisy_trajectories, kernel_noisy_trajectories.size() * sizeof(float), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(kernel_velocities.data(), dev_velocities, kernel_velocities.size() * sizeof(float), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(kernel_accelerations.data(), dev_accelerations, kernel_accelerations.size() * sizeof(float), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(kernel_smoothness.data(), dev_smoothness, kernel_smoothness.size() * sizeof(float), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(kernel_scores.data(), dev_scores, kernel_scores.size() * sizeof(float), cudaMemcpyDeviceToHost));
     if(verbose) {
         std::cout << "Host Initial Trajectories:" << std::endl;
         for(unsigned int i = 0; i < k; ++i) {
@@ -195,6 +214,24 @@ int main(int argc, char** argv) {
             }
             std::cout << std::endl;
         }
+        std::cout << "Host accelerations:" << std::endl;
+        for(unsigned int i = 0; i < k*m; ++i) {
+            for(unsigned int waypoint = 0; waypoint < n; ++waypoint) {
+                std::cout << '(';
+                for(unsigned int j = 0; j < d-1; ++j) {
+                    std::cout << host_accelerations[i*n*d + waypoint*d + j] << ", ";
+                }
+                std::cout << host_accelerations[(i+1)*n*d - 1] << ") ";
+            }
+            std::cout << std::endl;
+        }
+        std::cout << "Host smoothness:" << std::endl;
+        for(unsigned int i = 0; i < k; ++i) {
+            for(unsigned int j = 0; j < m; ++j) {
+                std::cout << host_smoothness[j] << ", ";
+            }
+            std::cout << std::endl;
+        }
         std::cout << "Kernel Initial trajectories" << std::endl;
         for(unsigned int i = 0; i < k; ++i) {
             for(unsigned int waypoint = 0; waypoint < n; ++waypoint) {
@@ -237,6 +274,13 @@ int main(int argc, char** argv) {
                     std::cout << kernel_velocities[i*n*d + waypoint*d + j] << ", ";
                 }
                 std::cout << kernel_velocities[(i+1)*n*d - 1] << ") ";
+            }
+            std::cout << std::endl;
+        }
+        std::cout << "Kernel smoothness:" << std::endl;
+        for(unsigned int i = 0; i < k; ++i) {
+            for(unsigned int j = 0; j < m; ++j) {
+                std::cout << kernel_smoothness[j] << ", ";
             }
             std::cout << std::endl;
         }
@@ -294,6 +338,14 @@ int main(int argc, char** argv) {
         std::cout << "the accelerations are not equal!" << std::endl;
         passed = false;
     }
+    if(!std::equal(kernel_smoothness.begin(), kernel_smoothness.end(), host_smoothness.begin(), floatCompare)) {
+        std::cout << "the smoothness costs are not equal!" << std::endl;
+        passed = false;
+    }
+    if(!std::equal(kernel_scores.begin(), kernel_scores.end(), host_scores.begin(), floatCompare)) {
+        std::cout << "the scores are not equal!" << std::endl;
+        passed = false;
+    }
     if(passed) {
         std::cout << "Passed!" << std::endl;
     } else {
@@ -305,5 +357,7 @@ int main(int argc, char** argv) {
     cudaFree(dev_rngs);
     cudaFree(dev_velocities);
     cudaFree(dev_accelerations);
+    cudaFree(dev_smoothness);
+    cudaFree(dev_scores);
     return passed;
 }
