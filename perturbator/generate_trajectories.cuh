@@ -13,7 +13,7 @@ __device__ void generate_noise_vectors(unsigned int num_noise_vectors, unsigned 
 
 __device__ void compute_noisy_trajectories(unsigned int num_noise_vectors, unsigned int dimensionality, unsigned int num_waypoints, float* noise_vectors, float* trajectories, float* noisy_trajectories);
 
-__device__ void score_noisy_trajectories(float* noisy_trajectories, unsigned int num_noisy_trajectories, unsigned int num_waypoints, unsigned int waypoint_dim, float* scores, float* accelerations, float* smoothness);
+__device__ void score_noisy_trajectories(float* noisy_trajectories, unsigned int num_noisy_trajectories, unsigned int num_waypoints, unsigned int waypoint_dim, float* scores, float* accelerations, float* smoothness, int* best_score);
 
 __device__ unsigned int num_collisions(float* waypoint, unsigned int waypoint_dim);
 
