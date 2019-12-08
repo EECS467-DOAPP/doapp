@@ -1,29 +1,35 @@
 #include "matrix.cu"
 
 #include <iostream>
+#include <cassert>
 
 int main() {
-    doapp::Matrix<float, 3, 3> A(3, 3);
+    doapp::Matrix<int, 2, 2> A(2, 2);
+    A[0][0] = 1;
+    A[0][1] = 2;
+    A[1][0] = 3;
+    A[1][1] = 4;
 
-    A[0][0] = 1.0f;
-    A[0][1] = 2.0f;
-    A[0][2] = 3.0f;
+    doapp::Matrix<int, 2, 2> B(2, 2);
+    B[0][0] = 5;
+    B[0][1] = 6;
+    B[1][0] = 7;
+    B[1][1] = 8;
 
-    A[1][0] = 4.0f;
-    A[1][1] = 5.0f;
-    A[1][2] = 6.0f;
+    const doapp::Matrix<int, 2, 2> C = A * B;
 
-    A[2][0] = 7.0f;
-    A[2][1] = 8.0f;
-    A[2][2] = 9.0f;
+    assert(C[0][0] == 19);
+    assert(C[0][1] == 22);
+    assert(C[1][0] == 43);
+    assert(C[1][1] == 50);
 
-    for (std::size_t i = 0; i < A.num_rows(); ++i) {
-        const auto this_row = A[i];
+    for (std::size_t i = 0; i < C.num_rows(); ++i) {
+        const auto this_row = C[i];
 
-        if (A.num_cols() > 0) {
+        if (C.num_cols() > 0) {
             std::cout << this_row[0];
 
-            for (std::size_t j = 1; j < A.num_cols(); ++j) {
+            for (std::size_t j = 1; j < C.num_cols(); ++j) {
                 std::cout << ", " << this_row[j];
             }
         }
