@@ -31,7 +31,7 @@
   
   <param name="publish_pointclouds" type="bool" value="$(arg publish_pointclouds)"/>
   <param name="extrinsics_file" type="str" value="$(find mapping)/calibration/extrinsics.yaml"/>
-  <param name="size" type="double" value="0.5" />
+  <param name="size" type="double" value="1" />
   <param name="granularity" type="double" value="0.01" />
 
   <node pkg="mapping" type="mapping_node" name="mapping" required="true"  output="screen">
