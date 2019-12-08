@@ -14,7 +14,12 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2
   tf2_ros
+  tf2_eigen
   occupancy_grid
+  pcl_ros
+  image_geometry
+  image_transport
+  depth_image_proc
 )
 
 find_package(YamlCpp REQUIRED)

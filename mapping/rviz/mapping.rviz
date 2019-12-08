@@ -9,11 +9,10 @@ Panels:
         - /TF1
         - /TF1/Frames1
         - /TF1/Tree1
-        - /TF1/Tree1/arm_bundle1
-        - /TF1/Tree1/arm_bundle1/camera3_link1
         - /PointCloud21
         - /PointCloud22
         - /PointCloud23
+        - /PointCloud24
       Splitter Ratio: 0.5
     Tree Height: 1088
   - Class: rviz/Selection
@@ -104,27 +103,24 @@ Visualization Manager:
       Show Names: true
       Tree:
         arm_bundle:
-          camera1_color_optical_frame:
-            {}
           camera1_link:
             camera1_color_frame:
-              {}
+              camera1_color_optical_frame:
+                {}
             camera1_depth_frame:
               camera1_depth_optical_frame:
                 {}
-          camera2_color_optical_frame:
-            {}
           camera2_link:
             camera2_color_frame:
-              {}
+              camera2_color_optical_frame:
+                {}
             camera2_depth_frame:
               camera2_depth_optical_frame:
                 {}
-          camera3_color_optical_frame:
-            {}
           camera3_link:
             camera3_color_frame:
-              {}
+              camera3_color_optical_frame:
+                {}
             camera3_depth_frame:
               camera3_depth_optical_frame:
                 {}
@@ -220,6 +216,36 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Boxes
+      Topic: /merged_cloud
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -248,7 +274,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.2633123397827148
+      Distance: 2.208369016647339
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -263,10 +289,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6103991866111755
+      Pitch: 0.6953990459442139
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.021768808364868
+      Yaw: 1.1817586421966553
     Saved: ~
 Window Geometry:
   Displays:
