@@ -23,6 +23,12 @@ public:
     void set(size_t x, size_t y, size_t z, int8_t val);
     void set(double x, double y, double z, int8_t val);
 
+    const int8_t &operator()(size_t x, size_t y, size_t z) const;
+    const int8_t &operator()(double x, double y, double z) const;
+
+    int8_t &operator()(size_t x, size_t y, size_t z);
+    int8_t &operator()(double x, double y, double z);
+
     void serialize(occupancy_grid::OccupancyGrid &map) const;
     void deserialize(const occupancy_grid::OccupancyGrid &map);
 
