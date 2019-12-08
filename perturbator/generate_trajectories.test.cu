@@ -7,6 +7,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <sstream>
 
 //host helper function to take the derivative of an input sequence
 void take_derivative(float inital[], float final[], float trajectory[], unsigned int waypoint_dim, unsigned int num_waypoints, float deltaT, float output[]) {
@@ -295,12 +296,23 @@ int main(int argc, char** argv) {
     };
     int error_call = 0;
     std::function<bool (float, float)> floatCompare = [&](float lhs, float rhs) {
-        bool result = std::abs(rhs - lhs) < 0.01f;
+        float epsilon = fabs(lhs / std::pow(2, 32));
+        bool result = std::abs(rhs - lhs) < epsilon;
+        if(!result) {
+            //gross heuristic: if they print the same, then it's close enough
+            std::stringstream ss;
+            ss << lhs;
+            std::string lhs_s = ss.str();
+            ss.clear();
+            ss << rhs;
+            std::string rhs_s = ss.str();
+            result = lhs_s != rhs_s;
+        }
         if(!result) {
             std::cout << "Error comparing " << lhs << " to " << rhs << std::endl;
             std::cout << "error on call: " << error_call << std::endl;
-        }
-        ++error_call;
+        } else
+            ++error_call;
         return result;
     };
     bool passed = true;
