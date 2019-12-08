@@ -70,7 +70,7 @@ __device__ void score_noisy_trajectories(float* noisy_trajectories, unsigned int
     //add smoothness cost
     if(threadIdx.x < num_noisy_trajectories) {
         smoothness[threadIdx.x] *= 0.5f;
-        scores[threadIdx.x] = smoothness[threadIdx.x];
+        scores[threadIdx.x] += smoothness[threadIdx.x];
     }
     //TODO: put in a term about violating joint limits
 }
