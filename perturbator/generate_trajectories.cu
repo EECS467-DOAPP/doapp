@@ -77,7 +77,20 @@ __device__ void score_noisy_trajectories(float* noisy_trajectories, unsigned int
     //TODO: put in a term about violating joint limits. be sure to move the atomicMin line!
 }
 
-__global__ void optimize_trajectories(float* trajectories, float* noise_vectors, float* noisy_trajectories, curandState* states, float* velocities, float* accelerations, float* smoothness, float* scores, unsigned int num_rngs_per_trajectory, unsigned int num_waypoints, unsigned int waypoint_dim, unsigned int num_noise_vectors, float deltaT) {
+__device__ void compute_update_vector(float* scores, float* noise_vectors, unsigned int num_noise_vectors, unsigned int waypoint_dim, float* output, float best_score) {
+    if(threadIdx.x < waypoint_dim) {
+        output[threadIdx.x] = 0;
+    }
+    __syncthreads(); //TODO: look into thread groups cause not all threads in the whole block need to sync up here
+    if(threadIdx.x < num_noise_vectors*waypoint_dim) {
+        unsigned int noise_vector = threadIdx.x / waypoint_dim;
+        float our_score = scores[noise_vector];
+        float weight = best_score / ceilf(our_score);
+        atomicAdd(output + (threadIdx.x % waypoint_dim), weight * noise_vectors[threadIdx.x]);
+    }
+}
+
+__global__ void optimize_trajectories(float* trajectories, float* noise_vectors, float* noisy_trajectories, curandState* states, float* velocities, float* accelerations, float* smoothness, float* scores, float* update_vectors, unsigned int num_rngs_per_trajectory, unsigned int num_waypoints, unsigned int waypoint_dim, unsigned int num_noise_vectors, float deltaT) {
     curandState* rng = threadIdx.x < num_rngs_per_trajectory ? states + (threadIdx.x + blockIdx.x*num_rngs_per_trajectory) : nullptr;
     float* block_trajectories = trajectories + blockIdx.x*num_waypoints*waypoint_dim;
     float* block_noise_vectors = noise_vectors + blockIdx.x*num_noise_vectors*waypoint_dim;
@@ -86,6 +99,7 @@ __global__ void optimize_trajectories(float* trajectories, float* noise_vectors,
     float* block_accelerations = accelerations + blockIdx.x*num_noise_vectors*num_waypoints*waypoint_dim;
     float* block_smoothness = smoothness + blockIdx.x*num_noise_vectors;
     float* block_scores = scores + blockIdx.x*num_noise_vectors;
+    float* block_update_vector = update_vectors + blockIdx.x*waypoint_dim;
     //TODO: have a shared memory slice of everything read/written to for better access timing
     initalize_trajectories(num_waypoints, waypoint_dim, rng, block_trajectories);
     __syncthreads();
@@ -103,6 +117,9 @@ __global__ void optimize_trajectories(float* trajectories, float* noise_vectors,
         best_score = INT_MAX; //ensure someone sets it
     __syncthreads();
     score_noisy_trajectories(block_noisy_trajectories, num_noise_vectors, num_waypoints, waypoint_dim, block_scores, block_accelerations, block_smoothness, &best_score);
+    __syncthreads();
+    //TODO: consider also scoring the current trajectory to make sure we don't go in a worse direction
+    compute_update_vector(block_scores, block_noise_vectors, num_noise_vectors, waypoint_dim, block_update_vector, best_score);
 }
 
 __device__ void compute_acceleration(float* velocity, unsigned int num_noisy_trajectories, unsigned int num_waypoints, unsigned waypoint_dim, float deltaT, float* output) {
