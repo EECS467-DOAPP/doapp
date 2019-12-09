@@ -8,6 +8,7 @@
 #include <dynamixel_workbench_msgs/DynamixelStateList.h>
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h>
+#include <cmath>
 #include <vector>
 
 enum MotorType {
@@ -31,6 +32,7 @@ struct DynamixelDriverGoal {
 class DynamixelDriver {
 private:
     std::vector<DynamixelDriverGoal> cmd;
+    bool reachedNextGoal;
 
     void init();
     void setMsg();
@@ -58,7 +60,8 @@ public:
 
     // Subscriber handler
     void handleState(const dynamixel_workbench_msgs::DynamixelStateList& msg);
-    void handleCommand(const dynamixel_driver::MotorCommand& msg);
+    bool handleCommand(dynamixel_driver::MotorCommand::Request& req,
+                       dynamixel_driver::MotorCommand::Response& res);
 };
 
 #endif
