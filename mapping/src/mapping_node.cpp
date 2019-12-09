@@ -18,10 +18,14 @@
 #include <sensor_msgs/image_encodings.h>
 #include <depth_image_proc/depth_conversions.h>
 
+#include <std_msgs/Empty.h>
+
 #include <pcl_ros/point_cloud.h>
 #include <pcl_ros/transforms.h>
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/radius_outlier_removal.h>
 
 #include <occupancy_grid/occupancy_grid.hpp>
 
@@ -33,6 +37,7 @@
 namespace
 {
 
+using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
 constexpr size_t num_cameras = 3;
 
 enum class State
@@ -80,10 +85,62 @@ void empty_callback(const std_msgs::Empty::Ptr &msg)
 {
 }
 
-using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
+// Handles float or uint16 depths
+void convert_sensor_msg_to_pcl(
+    const sensor_msgs::ImageConstPtr &depth_msg,
+    PointCloud::Ptr &cloud_msg,
+    const image_geometry::PinholeCameraModel &model,
+    double range_max = 0.0)
+{
+    // Use correct principal point from calibration
+    float center_x = model.cx();
+    float center_y = model.cy();
+
+    // Combine unit conversion (if necessary) with scaling by focal length for computing (X,Y)
+    double unit_scaling = depth_image_proc::DepthTraits<uint16_t>::toMeters(1);
+    float constant_x = unit_scaling / model.fx();
+    float constant_y = unit_scaling / model.fy();
+    float bad_point = std::numeric_limits<float>::quiet_NaN();
+
+    cloud_msg->reserve(depth_msg->width * depth_msg->height);
+
+    constexpr size_t num_threads = 4;
+
+    const uint16_t *depth_row = reinterpret_cast<const uint16_t *>(&depth_msg->data[0]);
+    int row_step = depth_msg->step / sizeof(uint16_t);
+    for (int v = 0; v < (int)depth_msg->height; v++, depth_row += row_step)
+    {
+        for (int u = 0; u < (int)depth_msg->width; u++)
+        {
+            uint16_t depth = depth_row[u];
+
+            // Missing points denoted by NaNs
+            if (!depth_image_proc::DepthTraits<uint16_t>::valid(depth))
+            {
+                if (range_max != 0.0)
+                {
+                    depth = depth_image_proc::DepthTraits<uint16_t>::fromMeters(range_max);
+                }
+                else
+                {
+                    continue;
+                }
+            }
+
+            // Fill in XYZ
+            const float x = (u - center_x) * depth * constant_x;
+            const float y = (v - center_y) * depth * constant_y;
+            const float z = depth_image_proc::DepthTraits<uint16_t>::toMeters(depth);
+            cloud_msg->push_back(pcl::PointXYZ(x, y, z));
+        }
+    }
+}
 
 double size = 1.0;
 double granularity = 0.01;
+// Radius outlier removal
+double radius = 0.05;
+int min_neightbors_in_radius = 50;
 
 PointCloud cloud;
 tf2_ros::Buffer tf_buffer;
@@ -109,85 +166,69 @@ bool new_cloud = false;
 void depth_callback(int camera_id, const sensor_msgs::ImageConstPtr &depth_msg, const sensor_msgs::CameraInfoConstPtr &info_msg)
 {
     // Deproject points into a point cloud
-    sensor_msgs::PointCloud2::Ptr cloud_msg(new sensor_msgs::PointCloud2);
-    cloud_msg->header = depth_msg->header;
-    cloud_msg->height = depth_msg->height;
-    cloud_msg->width = depth_msg->width;
-    cloud_msg->is_dense = false;
-    cloud_msg->is_bigendian = false;
-
-    sensor_msgs::PointCloud2Modifier pcd_modifier(*cloud_msg);
-    pcd_modifier.setPointCloud2FieldsByString(1, "xyz");
-
     image_geometry::PinholeCameraModel model;
     model.fromCameraInfo(info_msg);
 
-    // Do deprojection
-    depth_image_proc::convert<uint16_t>(depth_msg, cloud_msg, model);
-
-    PointCloud::Ptr original_cloud(new PointCloud);
+    PointCloud::Ptr cloud_msg(new PointCloud);
     PointCloud::Ptr cropped_cloud(new PointCloud);
     PointCloud::Ptr downsampled_cloud(new PointCloud);
+
+    // Do deprojection
+    cloud_msg->width = depth_msg->width;
+    cloud_msg->height = depth_msg->height;
+    cloud_msg->header = pcl_conversions::toPCL(depth_msg->header);
+    cloud_msg->is_dense = false;
+    convert_sensor_msg_to_pcl(depth_msg, cloud_msg, model);
 
     switch (camera_id)
     {
     case 1:
     {
         std::lock_guard<std::mutex> lock(camera1_mtx);
-
         if (!camera1)
         {
-            pcl::moveFromROSMsg(*cloud_msg, *original_cloud);
-            box_filter_camera1.setInputCloud(original_cloud);
-            box_filter_camera1.filter(*cropped_cloud);
-            voxel_filter_camera1.setInputCloud(cropped_cloud);
+            voxel_filter_camera1.setInputCloud(cloud_msg);
             voxel_filter_camera1.filter(*downsampled_cloud);
+            box_filter_camera1.setInputCloud(downsampled_cloud);
+            box_filter_camera1.filter(*cropped_cloud);
 
-            downsampled_cloud->header = pcl_conversions::toPCL(depth_msg->header);
-            pcl_ros::transformPointCloud("arm_bundle", *downsampled_cloud, *downsampled_cloud, tf_buffer);
+            pcl_ros::transformPointCloud("arm_bundle", *cropped_cloud, *camera1_cloud_pcl, tf_buffer);
+            camera1_cloud_pcl->header = pcl_conversions::toPCL(depth_msg->header);
 
             camera1 = true;
-            camera1_cloud_pcl = downsampled_cloud;
         }
         break;
     }
     case 2:
     {
         std::lock_guard<std::mutex> lock(camera2_mtx);
-
         if (!camera2)
         {
-            pcl::moveFromROSMsg(*cloud_msg, *original_cloud);
-            box_filter_camera2.setInputCloud(original_cloud);
-            box_filter_camera2.filter(*cropped_cloud);
-            voxel_filter_camera2.setInputCloud(cropped_cloud);
+            voxel_filter_camera2.setInputCloud(cloud_msg);
             voxel_filter_camera2.filter(*downsampled_cloud);
+            box_filter_camera2.setInputCloud(downsampled_cloud);
+            box_filter_camera2.filter(*cropped_cloud);
 
-            downsampled_cloud->header = pcl_conversions::toPCL(depth_msg->header);
-            pcl_ros::transformPointCloud("arm_bundle", *downsampled_cloud, *downsampled_cloud, tf_buffer);
-
+            pcl_ros::transformPointCloud("arm_bundle", *cropped_cloud, *camera2_cloud_pcl, tf_buffer);
+            camera2_cloud_pcl->header = pcl_conversions::toPCL(depth_msg->header);
             camera2 = true;
-            camera2_cloud_pcl = downsampled_cloud;
         }
         break;
     }
     case 3:
     {
         std::lock_guard<std::mutex> lock(camera3_mtx);
-
         if (!camera3)
         {
-            pcl::moveFromROSMsg(*cloud_msg, *original_cloud);
-            box_filter_camera3.setInputCloud(original_cloud);
-            box_filter_camera3.filter(*cropped_cloud);
-            voxel_filter_camera3.setInputCloud(cropped_cloud);
+            voxel_filter_camera3.setInputCloud(cloud_msg);
             voxel_filter_camera3.filter(*downsampled_cloud);
+            box_filter_camera3.setInputCloud(downsampled_cloud);
+            box_filter_camera3.filter(*cropped_cloud);
 
-            downsampled_cloud->header = pcl_conversions::toPCL(depth_msg->header);
-            pcl_ros::transformPointCloud("arm_bundle", *downsampled_cloud, *downsampled_cloud, tf_buffer);
+            pcl_ros::transformPointCloud("arm_bundle", *cropped_cloud, *camera3_cloud_pcl, tf_buffer);
+            camera3_cloud_pcl->header = pcl_conversions::toPCL(depth_msg->header);
 
             camera3 = true;
-            camera3_cloud_pcl = downsampled_cloud;
         }
         break;
     }
@@ -201,9 +242,11 @@ void depth_callback(int camera_id, const sensor_msgs::ImageConstPtr &depth_msg, 
         {
             {
                 std::lock_guard<std::mutex> lock(merge_mtx);
+                PointCloud::Ptr merged_cloud(new PointCloud);
                 cloud = *camera1_cloud_pcl;
                 cloud += *camera2_cloud_pcl;
                 cloud += *camera3_cloud_pcl;
+
                 cloud.header = camera1_cloud_pcl->header;
                 new_cloud = true;
             }
@@ -246,10 +289,12 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "Mapping");
     ros::NodeHandle node;
-    ros::Rate loop_rate(60.0);
+    ros::Rate loop_rate(100.0);
 
     node.getParam("size", size);
     node.getParam("granularity", granularity);
+    node.getParam("radius", radius);
+    node.getParam("min_neightbors_in_radius", min_neightbors_in_radius);
 
     ROS_INFO("Mapping with size %f meters and a granularity of %f meters", size, granularity);
 
@@ -292,6 +337,7 @@ int main(int argc, char **argv)
     }
 
     ros::Publisher cloud_pub = node.advertise<PointCloud>("/merged_cloud", 1);
+    ros::Publisher empty_pub = node.advertise<std_msgs::Empty>("/mapping_empty", 1);
 
     // Publish static transforms
     for (size_t i = 0; i < num_cameras; i++)
@@ -340,17 +386,14 @@ int main(int argc, char **argv)
                 {
                     cloud.header.frame_id = "arm_bundle";
 
-                    int num_points = 0;
-                    for (const auto &point : cloud)
-                    {
-                        num_points++;
-                    }
+                    int num_points = cloud.size();
                     ROS_INFO("There are %d points in the cloud.", num_points);
-
+                    std_msgs::Empty empty_msg;
+                    empty_pub.publish(empty_msg);
                     new_cloud = false;
-                }
 
-                cloud_pub.publish(cloud);
+                    cloud_pub.publish(cloud);
+                }
             }
 
             loop_rate.sleep();
