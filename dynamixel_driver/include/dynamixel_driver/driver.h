@@ -2,8 +2,10 @@
 #define __DRIVER_H
 
 #define NUM_MOTORS 6       // number of motors on Rexarm
+#define NUM_ARM_MOTORS 5   // number of motors except gripper on Rexarm
 #define NUM_TYPE_SWITCH 3  // motor ID that switches from MX-28 to AX-12A
-#include <dynamixel_driver/MotorCommand.h>
+#include <dynamixel_driver/ArmCommand.h>
+#include <dynamixel_driver/GripperCommand.h>
 #include <dynamixel_workbench_msgs/DynamixelCommand.h>
 #include <dynamixel_workbench_msgs/DynamixelStateList.h>
 #include <ros/ros.h>
@@ -56,12 +58,15 @@ public:
 
     // Command setting
     void set(const uint8_t id, const int32_t goalpos);
-    void set(const std::vector<int>& goals);
+    void setArm(const std::vector<int>& goals);
+    void setGripper(const int32_t goalpos);
 
     // Subscriber handler
     void handleState(const dynamixel_workbench_msgs::DynamixelStateList& msg);
-    bool handleCommand(dynamixel_driver::MotorCommand::Request& req,
-                       dynamixel_driver::MotorCommand::Response& res);
+    bool handleArmCommand(dynamixel_driver::ArmCommand::Request& req,
+                          dynamixel_driver::ArmCommand::Response& res);
+    bool handleGripperCommand(dynamixel_driver::GripperCommand::Request& req,
+                              dynamixel_driver::GripperCommand::Response& res);
 };
 
 #endif

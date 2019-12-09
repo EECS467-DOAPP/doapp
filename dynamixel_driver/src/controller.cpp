@@ -128,14 +128,18 @@ void DynamixelDriver::set(const uint8_t id, const int32_t goalpos) {
  * 
  * @param goals:    list of goals received from ROS message
  */
-void DynamixelDriver::set(const std::vector<int>& goals) {
+void DynamixelDriver::setArm(const std::vector<int>& goals) {
     cmd.clear();
-    for (int i = 0; i < NUM_MOTORS; ++i) {
+    for (int i = 0; i < NUM_ARM_MOTORS; ++i) {
         DynamixelDriverGoal goal;
         goal.type = (i < NUM_TYPE_SWITCH) ? MotorType::MX_28 : MotorType::AX_12A;
         goal.goalPosition = goals[i];
         cmd.push_back(goal);
     }
+}
+
+void DynamixelDriver::setGripper(const int32_t goalpos) {
+    cmd.back().goalPosition = goalpos;
 }
 
 /**
@@ -162,17 +166,37 @@ void DynamixelDriver::handleState(const dynamixel_workbench_msgs::DynamixelState
 }
 
 /**
- * @brief   Receives and handles command messages sent from other nodes.
+ * @brief   Receives and handles arm command messages sent from other nodes.
  *          Sets the new goal position for each motors
  * 
  * @param req:  goal positions sent from other nodes 
  * @param res:  indicator of reaching the goal position
  */
-bool DynamixelDriver::handleCommand(dynamixel_driver::MotorCommand::Request& req,
-                                    dynamixel_driver::MotorCommand::Response& res) {
-    for (int i = 0; i < NUM_MOTORS; ++i)
-        ROS_DEBUG("Received command %d at [%d]: ", req.commands[i], i);
-    set(req.commands);
+bool DynamixelDriver::handleArmCommand(dynamixel_driver::ArmCommand::Request& req,
+                                       dynamixel_driver::ArmCommand::Response& res) {
+    for (int i = 0; i < NUM_ARM_MOTORS; ++i)
+        ROS_DEBUG("Received arm command %d at [%d]\n", req.commands[i], i);
+    setArm(req.commands);
+    send();
+    setMsg();
+    res.reached = reachedNextGoal;
+
+    return true;
+}
+
+/**
+ * @brief       Receives and handles gripper command messages sent from other nodes.
+ *              Sets the new goal position for gripper motor only.
+ * 
+ * @param req:  goal position sent from other nodes
+ * @param res:  indicator of reaching the goal 
+ * @return true:    handling command successful 
+ * @return false:   handling command unsuccessful (currently DEPRECATED)
+ */
+bool DynamixelDriver::handleGripperCommand(dynamixel_driver::GripperCommand::Request& req,
+                                           dynamixel_driver::GripperCommand::Response& res) {
+    ROS_DEBUG("Received gripper command %d\n", req.command);
+    setGripper(req.command);
     send();
     setMsg();
     res.reached = reachedNextGoal;

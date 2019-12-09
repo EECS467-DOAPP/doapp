@@ -57,7 +57,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  MotorCommand.srv
+  ArmCommand.srv
+  GripperCommand.srv
 )
 
 ## Generate actions in the 'action' folder
