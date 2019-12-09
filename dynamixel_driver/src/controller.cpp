@@ -5,6 +5,7 @@
  * 
  */
 void DynamixelDriver::init() {
+    reachedNextGoal = false;
     client_ = n_.serviceClient<dynamixel_workbench_msgs::DynamixelCommand>("/dynamixel_workbench/dynamixel_command");
     for (int i = 0; i < NUM_MOTORS; ++i) {
         visualization_msg.position.push_back(0.0f);
@@ -147,9 +148,16 @@ void DynamixelDriver::handleState(const dynamixel_workbench_msgs::DynamixelState
     size_t stateListSize = msg.dynamixel_state.size();
     ROS_INFO("State list length: %d", stateListSize);
 
+    reachedNextGoal = true;
+    int threshold = 15;
     for (size_t i = 0; i < stateListSize; ++i) {
         dynamixel_workbench_msgs::DynamixelState state = msg.dynamixel_state[i];
         ROS_INFO("Current state [%d]: %d", state.id, state.present_position);
+
+        if (abs(state.present_position - cmd[state.id].goalPosition) > threshold)
+            // If any of the current motor state differs from the goal above a threshold,
+            //  it has not reached the target.
+            reachedNextGoal = false;
     }
 }
 
@@ -157,12 +165,17 @@ void DynamixelDriver::handleState(const dynamixel_workbench_msgs::DynamixelState
  * @brief   Receives and handles command messages sent from other nodes.
  *          Sets the new goal position for each motors
  * 
- * @param msg:  received ROS messages
+ * @param req:  goal positions sent from other nodes 
+ * @param res:  indicator of reaching the goal position
  */
-void DynamixelDriver::handleCommand(const dynamixel_driver::MotorCommand& msg) {
+bool DynamixelDriver::handleCommand(dynamixel_driver::MotorCommand::Request& req,
+                                    dynamixel_driver::MotorCommand::Response& res) {
     for (int i = 0; i < NUM_MOTORS; ++i)
-        ROS_DEBUG("Received command %d at [%d]: ", msg.commands[i], i);
-    set(msg.commands);
+        ROS_DEBUG("Received command %d at [%d]: ", req.commands[i], i);
+    set(req.commands);
     send();
     setMsg();
+    res.reached = reachedNextGoal;
+
+    return true;
 }

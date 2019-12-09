@@ -17,8 +17,8 @@ int main(int argc, char **argv) {
         driver.n_.subscribe("/dynamixel_workbench/dynamixel_state", 1000, &DynamixelDriver::handleState, &driver);
 
     // PART 3 -- Listening to motor command from other states
-    ros::Subscriber subcribeMotorCommand =
-        driver.n_.subscribe("motor_command", 1000, &DynamixelDriver::handleCommand, &driver);
+    ros::ServiceServer serviceMotorCommand =
+        driver.n_.advertiseService("motor_command", &DynamixelDriver::handleCommand, &driver);
 
     // PART 4 -- Publish motor states to joint_states to RViz
     ros::Publisher pub = driver.n_.advertise<sensor_msgs::JointState>("joint_states", 1000);
