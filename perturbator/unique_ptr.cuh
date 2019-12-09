@@ -13,13 +13,13 @@ public:
 
     explicit UniquePtr(T *ptr) noexcept : ptr_(ptr) { }
 
-    explicit UniquePtr(UniquePtr<T> &&other) noexcept : ptr_(other.ptr_) {
+    UniquePtr(UniquePtr<T> &&other) noexcept : ptr_(other.ptr_) {
         other.ptr_ = nullptr;
     }
 
     ~UniquePtr() {
-        if (!ptr) {
-            continue;
+        if (!ptr_) {
+            return;
         }
 
         ptr_->T::~T();
@@ -43,7 +43,7 @@ public:
     }
 
     __host__ __device__ T &operator*() const noexcept {
-        assert(ptr);
+        assert(ptr_);
 
         return *ptr_;
     }
@@ -73,7 +73,7 @@ __host__ __device__ void swap(UniquePtr<T> &lhs, UniquePtr<T> &rhs) noexcept {
     lhs.swap(rhs);
 }
 
-template <typename ...Ts>
+template <typename T, typename ...Ts>
 UniquePtr<T> make_unique(Ts &&...ts) {
     void *ptr;
 

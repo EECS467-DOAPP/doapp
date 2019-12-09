@@ -96,12 +96,11 @@ static void build(BlockingWorkQueue &queue,
                   PartitionType partition_type = PartitionType::X,
                   kd_tree::Node *parent = nullptr) noexcept;
 
-static __host__ __device__ bool
-do_neighbor_check(const Matrix<float, 3, Dynamic> &pointcloud,
-                  const Vector<kd_tree::Node, Dynamic> &nodes, float x, float y,
-                  float z, float radius_sq, float &current_min_sq,
-                  std::size_t index = 0,
-                  PartitionType partition_type = PartitionType::X) noexcept;
+static __host__ __device__ void do_nearest_neighbor_search(
+    const Matrix<float, 3, Dynamic> &pointcloud,
+    const Vector<kd_tree::Node, Dynamic> &nodes, float x, float y, float z,
+    float &current_min_sq, std::size_t index = 0,
+    PartitionType partition_type = PartitionType::X) noexcept;
 
 } // namespace kd_tree
 
@@ -140,18 +139,27 @@ KDTree::KDTree(const Matrix<float, 3, Dynamic> &pointcloud)
   }
 }
 
-__host__ __device__ bool
-KDTree::has_neighbor_in_radius(float x, float y, float z, float radius) const
+__host__ __device__ float KDTree::distance_to_nearest_neighbor(float x, float y,
+                                                               float z) const
     noexcept {
-  float current_min_sq = std::numeric_limits<float>::infinity();
-  return kd_tree::do_neighbor_check(pointcloud_, nodes_, x, y, z,
-                                    radius * radius, current_min_sq);
+  float current_min_sq = HUGE_VAL;
+  kd_tree::do_nearest_neighbor_search(pointcloud_, nodes_, x, y, z,
+                                      current_min_sq);
+
+  return std::sqrt(current_min_sq);
 }
 
 namespace kd_tree {
 
+constexpr std::size_t NULL_INDEX = std::numeric_limits<std::size_t>::max();
+constexpr std::ptrdiff_t NULL_OFFSET = std::numeric_limits<std::ptrdiff_t>::max();
+
 __host__ __device__ static constexpr float min(float x, float y) noexcept {
   return (y < x) ? y : x;
+}
+
+__host__ __device__ static constexpr float max(float x, float y) noexcept {
+  return (y > x) ? y : x;
 }
 
 __host__ __device__ static constexpr float square(float x) noexcept {
@@ -295,11 +303,12 @@ static void build(BlockingWorkQueue &queue,
 #endif
 }
 
-static __host__ __device__ bool
-do_neighbor_check(const Matrix<float, 3, Dynamic> &pointcloud,
-                  const Vector<kd_tree::Node, Dynamic> &nodes, float x, float y,
-                  float z, float radius_sq, float &current_min_sq,
-                  std::size_t index, PartitionType partition_type) noexcept {
+static __host__ __device__ void
+do_nearest_neighbor_search(const Matrix<float, 3, Dynamic> &pointcloud,
+                           const Vector<kd_tree::Node, Dynamic> &nodes, float x,
+                           float y, float z, float &current_min_sq,
+                           std::size_t index,
+                           PartitionType partition_type) noexcept {
   const kd_tree::Node &node = nodes[index];
   const std::size_t pointcloud_index = node.pointcloud_index;
   const float distance_to_node_sq =
@@ -309,21 +318,17 @@ do_neighbor_check(const Matrix<float, 3, Dynamic> &pointcloud,
 
   current_min_sq = min(distance_to_node_sq, current_min_sq);
 
-  if (current_min_sq <= radius_sq) {
-    return true;
-  }
-
   float distance_to_hyperplane_sq;
   PartitionType next_partition_type;
 
-  std::size_t left_child_index = std::numeric_limits<std::size_t>::max();
-  if (node.left_child_offset != std::numeric_limits<std::ptrdiff_t>::max()) {
+  std::size_t left_child_index = NULL_INDEX;
+  if (node.left_child_offset != NULL_OFFSET) {
     left_child_index = static_cast<std::size_t>(
         static_cast<std::ptrdiff_t>(index) + node.left_child_offset);
   }
 
-  std::size_t right_child_index = std::numeric_limits<std::size_t>::max();
-  if (node.right_child_offset != std::numeric_limits<std::ptrdiff_t>::max()) {
+  std::size_t right_child_index = NULL_INDEX;
+  if (node.right_child_offset != NULL_OFFSET) {
     right_child_index = static_cast<std::size_t>(
         static_cast<std::ptrdiff_t>(index) + node.right_child_offset);
   }
@@ -383,19 +388,17 @@ do_neighbor_check(const Matrix<float, 3, Dynamic> &pointcloud,
   }
   }
 
-  if (best_child_index != std::numeric_limits<std::size_t>::max() &&
-      do_neighbor_check(pointcloud, nodes, x, y, z, radius_sq, current_min_sq,
-                        best_child_index, next_partition_type)) {
-    return true;
-  } else if (distance_to_hyperplane_sq <= current_min_sq &&
-             other_child_index != std::numeric_limits<std::size_t>::max() &&
-             do_neighbor_check(pointcloud, nodes, x, y, z, radius_sq,
-                               current_min_sq, other_child_index,
-                               next_partition_type)) {
-    return true;
-  }
+  if (best_child_index != NULL_INDEX) {
+    do_nearest_neighbor_search(pointcloud, nodes, x, y, z, current_min_sq,
+                               best_child_index, next_partition_type);
 
-  return false;
+    if (distance_to_hyperplane_sq <= current_min_sq && other_child_index != NULL_INDEX) {
+      do_nearest_neighbor_search(pointcloud, nodes, x, y, z, current_min_sq,
+                                 other_child_index, next_partition_type);
+    }
+  } else {
+    assert(other_child_index == NULL_INDEX);
+  }
 }
 
 } // namespace kd_tree
