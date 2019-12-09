@@ -223,23 +223,39 @@ private:
 
 template <typename T, std::size_t N, std::size_t M> class MatrixColIterator {
 public:
-  using value_type = Slice<const T>;
+  using value_type = Slice<T>;
   using difference_type = std::ptrdiff_t;
-  using reference = const Slice<const T> &;
-  using pointer = const Slice<const T> *;
+  using reference = const Slice<T> &;
+  using pointer = const Slice<T> *;
   using iterator_category = std::random_access_iterator_tag;
 
-  __host__ __device__ MatrixColIterator(const Matrix<T, N, M> &parent,
+  MatrixColIterator() noexcept = default;
+
+  __host__ __device__ MatrixColIterator(Matrix<T, N, M> &parent,
                                         std::size_t j) noexcept
-      : parent_(parent), j_(j), col_(parent.col(j)) {}
+      : parent_(&parent), j_(j), col_(parent.col(j)) {}
 
-  const Slice<const T> &operator*() const noexcept { return col_; }
+  __host__ __device__ MatrixColIterator(const MatrixColIterator &other) noexcept
+      : parent_(other.parent_), j_(other.j_) {
+    col_.reassign(other.col_);
+  }
 
-  const Slice<const T> *operator->() const noexcept { return &col_; }
+  __host__ __device__ MatrixColIterator &
+  operator=(const MatrixColIterator &other) noexcept {
+    parent_ = other.parent_;
+    j_ = other.j_;
+    col_.reassign(other.col_);
+
+    return *this;
+  }
+
+  const Slice<T> &operator*() const noexcept { return col_; }
+
+  const Slice<T> *operator->() const noexcept { return &col_; }
 
   MatrixColIterator &operator++() noexcept {
     ++j_;
-    col_ = parent_.col(j_);
+    col_.reassign(parent_->col(j_));
 
     return *this;
   }
@@ -248,14 +264,14 @@ public:
     MatrixColIterator ret(*this);
 
     ++j_;
-    col_ = parent_.col(j_);
+    col_.reassign(parent_->col(j_));
 
     return ret;
   }
 
   MatrixColIterator &operator--() noexcept {
     --j_;
-    col_ = parent_.col(j_);
+    col_.reassign(parent_->col(j_));
 
     return *this;
   }
@@ -264,21 +280,21 @@ public:
     MatrixColIterator ret(*this);
 
     --j_;
-    col_ = parent_.col(j_);
+    col_.reassign(parent_->col(j_));
 
     return ret;
   }
 
   MatrixColIterator &operator+=(std::ptrdiff_t n) noexcept {
     j_ = static_cast<std::ptrdiff_t>(j_) + n;
-    col_ = parent_.col(j_);
+    col_.reassign(parent_->col(j_));
 
     return *this;
   }
 
   MatrixColIterator &operator-=(std::ptrdiff_t n) noexcept {
     j_ = static_cast<std::ptrdiff_t>(j_) - n;
-    col_ = parent_.col(j_);
+    col_.reassign(parent_->col(j_));
 
     return *this;
   }
@@ -288,7 +304,7 @@ public:
     MatrixColIterator ret(iter);
 
     ret.j_ = static_cast<std::ptrdiff_t>(ret.j_) + n;
-    ret.col_ = ret.parent_.col(ret.j_);
+    ret.col_.reassign(ret.parent_->col(ret.j_));
 
     return ret;
   }
@@ -298,7 +314,7 @@ public:
     MatrixColIterator ret(iter);
 
     ret.j_ = static_cast<std::ptrdiff_t>(ret.j_) + n;
-    ret.col_ = ret.parent_.col(ret.j_);
+    ret.col_.reassign(ret.parent_->col(ret.j_));
 
     return ret;
   }
@@ -308,7 +324,7 @@ public:
     MatrixColIterator ret(iter);
 
     ret.j_ = static_cast<std::ptrdiff_t>(ret.j_) - n;
-    ret.col_ = ret.parent_.col(ret.j_);
+    ret.col_.reassign(ret.parent_->col(ret.j_));
 
     return ret;
   }
@@ -316,7 +332,7 @@ public:
   friend std::ptrdiff_t
   operator-(const MatrixColIterator<T, N, M> &lhs,
             const MatrixColIterator<T, N, M> &rhs) noexcept {
-    assert(&lhs.parent_ == &rhs.parent_);
+    assert(lhs.parent_ == rhs.parent_);
 
     return static_cast<std::ptrdiff_t>(lhs.j_) -
            static_cast<std::ptrdiff_t>(rhs.j_);
@@ -324,39 +340,39 @@ public:
 
   friend bool operator==(const MatrixColIterator<T, N, M> &lhs,
                          const MatrixColIterator<T, N, M> &rhs) noexcept {
-    return (&lhs.parent_ == &rhs.parent_) && (lhs.j_ == rhs.j_);
+    return (lhs.parent_ == rhs.parent_) && (lhs.j_ == rhs.j_);
   }
 
   friend bool operator!=(const MatrixColIterator<T, N, M> &lhs,
                          const MatrixColIterator<T, N, M> &rhs) noexcept {
-    return (&lhs.parent_ != &rhs.parent_) || (lhs.j_ != rhs.j_);
+    return (lhs.parent_ != rhs.parent_) || (lhs.j_ != rhs.j_);
   }
 
   friend bool operator<(const MatrixColIterator<T, N, M> &lhs,
                         const MatrixColIterator<T, N, M> &rhs) noexcept {
-    return (&lhs.parent_ == &rhs.parent_) && (lhs.j_ < rhs.j_);
+    return (lhs.parent_ == rhs.parent_) && (lhs.j_ < rhs.j_);
   }
 
   friend bool operator<=(const MatrixColIterator<T, N, M> &lhs,
                          const MatrixColIterator<T, N, M> &rhs) noexcept {
-    return (&lhs.parent_ == &rhs.parent_) && (lhs.j_ <= rhs.j_);
+    return (lhs.parent_ == rhs.parent_) && (lhs.j_ <= rhs.j_);
   }
 
   friend bool operator>(const MatrixColIterator<T, N, M> &lhs,
                         const MatrixColIterator<T, N, M> &rhs) noexcept {
-    return (&lhs.parent_ == &rhs.parent_) && (lhs.j_ > rhs.j_);
+    return (lhs.parent_ == rhs.parent_) && (lhs.j_ > rhs.j_);
   }
 
   friend bool operator>=(const MatrixColIterator<T, N, M> &lhs,
                          const MatrixColIterator<T, N, M> &rhs) noexcept {
-    return (&lhs.parent_ == &rhs.parent_) && (lhs.j_ >= rhs.j_);
+    return (lhs.parent_ == rhs.parent_) && (lhs.j_ >= rhs.j_);
   }
 
 private:
-  const Matrix<T, N, M> &parent_;
+  Matrix<T, N, M> *parent_;
   std::size_t j_;
-  Slice<const T> col_;
-}
+  Slice<T> col_;
+};
 
 template <typename T, std::size_t N, std::size_t M>
 __host__ __device__ Matrix<T, N, M>

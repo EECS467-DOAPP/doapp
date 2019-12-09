@@ -6,24 +6,26 @@
 #include <limits>
 
 namespace doapp {
+namespace kd_tree {
+
+struct Node {
+  float value;
+  std::ptrdiff_t left_child_offset = std::numeric_limits<std::ptrdiff_t>::max();
+  std::ptrdiff_t right_child_offset = std::numeric_limits<std::ptrdiff_t>::max();
+  std::size_t pointcloud_index;
+};
+
+} // namespace kd_tree
 
 class KDTree {
 public:
-    explicit KDTree(Matrix<float, 3, Dynamic> &pointcloud);
+  explicit KDTree(Matrix<float, 3, Dynamic> &pointcloud);
 
-    __host__ __device__ float nearest_neighbor_distance(float x, float y, float z) noexcept;
-
+  __host__ __device__ float nearest_neighbor_distance(float x, float y,
+                                                      float z) const noexcept;
 private:
-  struct Node {
-    explicit Node(float v) noexcept : value(v) {}
-
-    float value;
-    std::size_t left_child = std::numeric_limits<std::size_t>::max();
-    std::size_t right_child = std::numeric_limits<std::size_t>::max();
-  };
-
   Matrix<float, 3, Dynamic> &pointcloud_;
-  Vector<Node, Dynamic> nodes_;
+  Vector<kd_tree::Node, Dynamic> nodes_;
 };
 
 } // namespace doapp

@@ -5,9 +5,11 @@
 #include <cassert>
 #include <cstddef>
 #include <initializer_list>
+#include <iterator>
 #include <limits>
 #include <new>
 #include <type_traits>
+#include <utility>
 
 namespace doapp {
 namespace detail {
@@ -39,11 +41,58 @@ public:
 
   __host__ __device__ T *data() const noexcept { return data_; }
 
+  __host__ __device__ void swap(Slice<T> other) const {
+    assert(len_ == other.len_);
+
+    using std::swap;
+
+    for (std::size_t i = 0; i < len_; ++i) {
+      swap(data_[pitch_ * i], other.data_[other.pitch_ * i]);
+    }
+  }
+
+  __host__ __device__ const Slice<T> &operator=(const Slice<T> &other) const {
+    assert(len_ == other.len_);
+
+    for (std::size_t i = 0; i < len_; ++i) {
+      data_[pitch_ * i] = other.data_[other.pitch_ * i];
+    }
+
+    return *this;
+  }
+
+  __host__ __device__ Slice<T> &operator=(const Slice<T> &other) {
+    assert(len_ == other.len_);
+
+    for (std::size_t i = 0; i < len_; ++i) {
+      data_[pitch_ * i] = other.data_[other.pitch_ * i];
+    }
+
+    return *this;
+  }
+
+  __host__ __device__ void reassign(T *data, std::size_t len, std::size_t pitch = 0) noexcept {
+    data_ = data;
+    len_ = len;
+    pitch_ = pitch;
+  }
+
+  __host__ __device__ void reassign(const Slice<T> &slice) noexcept {
+    data_ = slice.data_;
+    len_ = slice.len_;
+    pitch_ = slice.pitch_;
+  }
+
 private:
   T *data_ = nullptr;
   std::size_t len_ = 0;
   std::size_t pitch_ = 1;
 };
+
+template <typename T>
+__host__ __device__ void swap(Slice<T> lhs, Slice<T> rhs) {
+  lhs.swap(rhs);
+}
 
 template <typename T, std::size_t N> class Vector {
 public:
