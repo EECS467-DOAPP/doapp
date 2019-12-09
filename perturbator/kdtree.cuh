@@ -11,7 +11,8 @@ namespace kd_tree {
 struct Node {
   float value;
   std::ptrdiff_t left_child_offset = std::numeric_limits<std::ptrdiff_t>::max();
-  std::ptrdiff_t right_child_offset = std::numeric_limits<std::ptrdiff_t>::max();
+  std::ptrdiff_t right_child_offset =
+      std::numeric_limits<std::ptrdiff_t>::max();
   std::size_t pointcloud_index;
 };
 
@@ -19,12 +20,13 @@ struct Node {
 
 class KDTree {
 public:
-  explicit KDTree(Matrix<float, 3, Dynamic> &pointcloud);
+  explicit KDTree(const Matrix<float, 3, Dynamic> &pointcloud);
 
-  __host__ __device__ float nearest_neighbor_distance(float x, float y,
-                                                      float z) const noexcept;
+  __host__ __device__ bool has_neighbor_in_radius(float x, float y, float z,
+                                                  float radius) const noexcept;
+
 private:
-  Matrix<float, 3, Dynamic> &pointcloud_;
+  const Matrix<float, 3, Dynamic> &pointcloud_;
   Vector<kd_tree::Node, Dynamic> nodes_;
 };
 
