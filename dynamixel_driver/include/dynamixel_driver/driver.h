@@ -7,6 +7,7 @@
 #include <dynamixel_workbench_msgs/DynamixelCommand.h>
 #include <dynamixel_workbench_msgs/DynamixelStateList.h>
 #include <ros/ros.h>
+#include <sensor_msgs/JointState.h>
 #include <vector>
 
 enum MotorType {
@@ -31,12 +32,16 @@ class DynamixelDriver {
 private:
     std::vector<DynamixelDriverGoal> cmd;
 
-    void initSrvClient();
+    void init();
+    void setMsg();
 
 public:
     // ROS instances
     ros::NodeHandle n_;
     ros::ServiceClient client_;
+
+    // Messages published to RViz
+    sensor_msgs::JointState visualization_msg;
 
     // Constructors
     DynamixelDriver();
@@ -49,6 +54,7 @@ public:
 
     // Command setting
     void set(const uint8_t id, const int32_t goalpos);
+    void set(const std::vector<int>& goals);
 
     // Subscriber handler
     void handleState(const dynamixel_workbench_msgs::DynamixelStateList& msg);

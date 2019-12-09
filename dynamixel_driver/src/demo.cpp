@@ -13,6 +13,19 @@
  * @return int: None
  */
 
+namespace demo {
+/**
+ * @brief Initialize message from an empty vector
+ * 
+ * @param msg:  message to be initialized
+ */
+void init(dynamixel_driver::MotorCommand &msg) {
+    for (int i = 0; i < NUM_MOTORS; ++i) {
+        msg.commands.push_back((i < NUM_TYPE_SWITCH) ? 2048 : 512);
+    }
+}
+}  // namespace demo
+
 int main(int argc, char **argv) {
     ros::init(argc, argv, "dynamixel_driver_demo");
     ros::NodeHandle n;
@@ -29,26 +42,27 @@ int main(int argc, char **argv) {
     bool increasing = true;
 
     dynamixel_driver::MotorCommand msg;
-    msg.id = 3;
-    msg.goal = lower_bound;
+    demo::init(msg);
+    int id = 3;
+    msg.commands[id] = lower_bound;
     while (ros::ok()) {
         if (increasing) {
-            if (msg.goal < upper_bound)
-                msg.goal += 1;
+            if (msg.commands[id] < upper_bound)
+                msg.commands[id] += 1;
             else {
-                msg.goal = upper_bound;
+                msg.commands[id] = upper_bound;
                 increasing = false;
             }
         } else {
-            if (msg.goal > lower_bound)
-                msg.goal -= 1;
+            if (msg.commands[id] > lower_bound)
+                msg.commands[id] -= 1;
             else {
-                msg.goal = lower_bound;
+                msg.commands[id] = lower_bound;
                 increasing = true;
             }
         }
 
-        ROS_INFO("Sending goal %d to motor [%d]: ", msg.goal, msg.id);
+        ROS_INFO("Sending goal %d to motor [%d]: ", msg.commands[id], id);
 
         pub.publish(msg);
         ros::spinOnce();
