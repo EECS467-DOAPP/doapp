@@ -7,7 +7,6 @@
 #include <cstring>
 #include <deque>
 #include <functional>
-#include <iostream>
 #include <mutex>
 #include <numeric>
 #include <stdexcept>
@@ -182,6 +181,7 @@ static void build(BlockingWorkQueue &queue,
   float value;
   PartitionType next;
   kd_tree::Node &this_node = nodes[top_idx];
+  std::size_t pointcloud_index;
 
   switch (partition_type) {
   case PartitionType::X: {
@@ -189,31 +189,39 @@ static void build(BlockingWorkQueue &queue,
                      [&pointcloud](std::size_t lhs, std::size_t rhs) {
                        return pointcloud[0][lhs] < pointcloud[0][rhs];
                      });
-    value = pointcloud[0][*mid];
+    pointcloud_index = *mid;
+    value = pointcloud[0][pointcloud_index];
 
     next = PartitionType::Y;
+
+    break;
   }
   case PartitionType::Y: {
     std::nth_element(min, mid, max,
                      [&pointcloud](std::size_t lhs, std::size_t rhs) {
                        return pointcloud[1][lhs] < pointcloud[1][rhs];
                      });
-    value = pointcloud[1][*mid];
+    pointcloud_index = *mid;
+    value = pointcloud[1][pointcloud_index];
 
     next = PartitionType::Z;
+
+    break;
   }
   case PartitionType::Z: {
     std::nth_element(min, mid, max,
                      [&pointcloud](std::size_t lhs, std::size_t rhs) {
                        return pointcloud[2][lhs] < pointcloud[2][rhs];
                      });
-    value = pointcloud[2][*mid];
+    pointcloud_index = *mid;
+    value = pointcloud[2][pointcloud_index];
 
     next = PartitionType::X;
+
+    break;
   }
   }
 
-  const std::size_t pointcloud_index = *mid;
   this_node.value = value;
   this_node.pointcloud_index = pointcloud_index;
 
@@ -269,17 +277,17 @@ static void build(BlockingWorkQueue &queue,
 
   switch (partition_type) {
   case PartitionType::X: {
-    assert(this_node.value = pointcloud[0][pointcloud_index]);
+    assert(this_node.value == pointcloud[0][pointcloud_index]);
 
     break;
   }
   case PartitionType::Y: {
-    assert(this_node.value = pointcloud[1][pointcloud_index]);
+    assert(this_node.value == pointcloud[1][pointcloud_index]);
 
     break;
   }
   case PartitionType::Z: {
-    assert(this_node.value = pointcloud[2][pointcloud_index]);
+    assert(this_node.value == pointcloud[2][pointcloud_index]);
 
     break;
   }
