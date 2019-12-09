@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="rexarm">
+    <!--
+    rexarm_description: URDF for the Rexarm.
+    Copyright (C) 2019 Nathan Brown, Martin Deegan, Gregory Meyer, and Zhihao Ruan
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    -->
+
+    <!-- mx-28 dimensions:
+        3.5cm short axis
+        5cm long axis
+        3cm tall (mounting plate to mounting plate)
+        1.1cm from front face to horn axis
+        1.4cm from center to horn axis -->
+
+    <material name="black">
+        <color rgba="0.0 0.0 0.0 1.0"/>
+    </material>
+
+    <link name="base_link">
+        <visual>
+            <!-- base mx-28 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.014 -0.0015 0.0565"/>
+
+            <geometry>
+                <box size="0.05 0.035 0.03"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <link name="base_servo_link">
+        <visual>
+            <!-- shoulder mx-28 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.031"/>
+
+            <geometry>
+                <box size="0.035 0.03 0.05"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <joint name="base_servo" type="continuous">
+        <parent link="base_link"/>
+        <child link="base_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.0015 0.0715"/>
+        <axis xyz="0.0 0.0 1.0"/>
+    </joint>
+
+    <link name="shoulder_servo_link">
+        <visual>
+            <!-- elbow mx-28 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.086"/>
+
+            <geometry>
+                <box size="0.035 0.03 0.05"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <joint name="shoulder_servo" type="continuous">
+        <parent link="base_servo_link"/>
+        <child link="shoulder_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.045"/>
+        <axis xyz="0.0 1.0 0.0"/>
+    </joint>
+
+    <!-- ax-12 dimensions:
+        3.2cm short axis
+        5cm long axis
+        3.1cm tall
+        1.075cm from front face to horn axis
+        1.425cm from center to horn axis -->
+
+    <link name="elbow_servo_link">
+        <visual>
+            <!-- wrist ax-12 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.08575"/>
+
+            <geometry>
+                <box size="0.032 0.031 0.05"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <joint name="elbow_servo" type="continuous">
+        <parent link="shoulder_servo_link"/>
+        <child link="elbow_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.1"/>
+        <axis xyz="0.0 1.0 0.0"/>
+    </joint>
+
+    <link name="wrist_servo_link">
+        <visual>
+            <!-- wrist rotate ax-12 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.00175 0.0645"/>
+
+            <geometry>
+                <box size="0.032 0.05 0.031"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <joint name="wrist_servo" type="continuous">
+        <parent link="elbow_servo_link"/>
+        <child link="wrist_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.1"/>
+        <axis xyz="0.0 1.0 0.0"/>
+    </joint>
+
+    <link name="wrist_rotate_servo_link">
+        <visual>
+            <!-- gripper ax-12 -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.00125 0.019"/>
+
+            <geometry>
+                <box size="0.031 0.05 0.031"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <joint name="wrist_rotate_servo" type="continuous">
+        <parent link="wrist_servo_link"/>
+        <child link="wrist_rotate_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.0125 0.08"/>
+        <axis xyz="0.0 0.0 1.0"/>
+    </joint>
+
+    <material name="blue">
+        <color rgba="0.0 0.0 1.0 1.0"/>
+    </material>
+
+    <link name="gripper_servo_link">
+        <visual>
+            <!-- dynamic gripper fingers -->
+            <origin rpy="0.08726646259971647 0.0 0.0" xyz="0.0 -0.00348623 0.03984779"/>
+
+            <geometry>
+                <box size="0.04 0.01 0.08"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+    </link>
+
+    <joint name="gripper_servo" type="continuous">
+        <parent link="wrist_rotate_servo_link"/>
+        <child link="gripper_servo_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.013 0.019"/>
+        <axis xyz="1.0 0.0 0.0"/>
+    </joint>
+
+    <link name="gripper_fingers_link">
+        <visual>
+            <!-- static gripper fingers -->
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+
+            <geometry>
+                <box size="0.0275 0.01 0.07"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+    </link>
+
+    <joint name="gripper_fingers" type="fixed">
+        <parent link="wrist_rotate_servo_link"/>
+        <child link="gripper_fingers_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.0 0.01 0.07"/>
+    </joint>
+
+    <link name="gripper_center_link"/>
+
+    <joint name="gripper_center" type="fixed">
+        <parent link="wrist_rotate_servo_link"/>
+        <child link="gripper_center_link"/>
+        <origin rpy="0.0 -1.5707963267948966 0.0" xyz="0.0 -0.005 0.07"/>
+    </joint>
+</robot>

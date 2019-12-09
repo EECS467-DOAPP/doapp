@@ -1,0 +1,28 @@
+<!--
+rexarm_description: URDF for the Rexarm.
+Copyright (C) 2019 Nathan Brown, Martin Deegan, Gregory Meyer, and Zhihao Ruan
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<launch>
+    <param name="robot_description"
+           textfile="$(find rexarm_description)/robots/rexarm.urdf"/>
+
+    <rosparam command="load" file="$(find rexarm_description)/config/rexarm_description.yaml"/>
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher"
+          type="robot_state_publisher" output="screen" clear_params="true"
+          required="true"/>
+</launch>

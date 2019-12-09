@@ -1,0 +1,5 @@
+robot_state_publisher:
+  tf_prefix: ""
+  ignore_timestamp: false
+  use_tf_static: true
+  publish_frequency: 20.0
