@@ -116,32 +116,24 @@ sensor_msgs::JointState TrajectoryFollower::follow_trajectory()
         goal_data.push_back(wb_.convertVelocity2Value(joints_.joint_ids[i], goal_velocity[i]));
     }
 
-    const char **log;
-
     int32_t *write_data = reinterpret_cast<int32_t *>(goal_data.data());
-    ROS_INFO("first data: %#010x, goal data: %#04x %#04x", write_data[0], goal_data[0], goal_data[1]);
-    if (!wb_.syncWrite(0, joints_.joint_ids.data(), joints_.num_joints, write_data, 1, log))
+    if (!wb_.syncWrite(0, joints_.joint_ids.data(), joints_.num_joints, write_data, 1))
     {
         ROS_WARN("Could not sync write to dynamixel");
-        ROS_WARN("%s", *log);
     }
 
-    // ROS_INFO("Wrote data");
-
-    // int32_t read_data[joints_.num_joints];
-    // if (!wb_.syncRead(0, joints_.joint_ids.data(), joints_.num_joints, log))
-    // {
-    //     ROS_WARN("Could not sync read from dynamixel");
-    //     ROS_WARN("%s", *log);
-    // }
-    // else
-    // {
-    //     if (!wb_.getSyncReadData(0, read_data, log))
-    //     {
-    //         ROS_WARN("Could not retrieve data from sync read");
-    //         ROS_WARN("%s", *log);
-    //     }
-    // }
+    int32_t read_data[joints_.num_joints];
+    if (!wb_.syncRead(0, joints_.joint_ids.data(), joints_.num_joints))
+    {
+        ROS_WARN("Could not sync read from dynamixel");
+    }
+    else
+    {
+        if (!wb_.getSyncReadData(0, read_data))
+        {
+            ROS_WARN("Could not retrieve data from sync read");
+        }
+    }
 
     // ROS_INFO("Read data");
     sensor_msgs::JointState state;
