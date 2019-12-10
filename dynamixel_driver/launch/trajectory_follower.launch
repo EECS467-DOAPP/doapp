@@ -7,6 +7,7 @@
   <param name="port" value="$(arg usb_port)"/>
   <param name="dynamixel_protocol" value="$(arg dynamixel_protocol)"/>
   <param name="baud_rate" value="$(arg dxl_baud_rate)"/>
+
   <node name="trajectory_follower" pkg="dynamixel_driver" type="trajectory_follower" required="true" output="screen">
   </node>
 </launch>

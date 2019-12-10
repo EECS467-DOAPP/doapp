@@ -13,8 +13,14 @@ namespace doapp
 
 struct Joints
 {
-    constexpr static size_t num_joints = 5;
     std::vector<uint8_t> joint_ids;
+    int num_joints;
+
+    Joints()
+    {
+        joint_ids = {0, 1, 2, 3, 4, 5};
+        num_joints = joint_ids.size();
+    }
 };
 
 class TrajectoryFollower
