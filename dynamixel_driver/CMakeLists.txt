@@ -49,17 +49,17 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   MotorCommand.msg
-# )
+add_message_files(
+  FILES
+  MotorCommand.msg
+)
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  ArmCommand.srv
-  GripperCommand.srv
-)
+# add_service_files(
+#   FILES
+#   ArmCommand.srv
+#   GripperCommand.srv
+# )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -137,6 +137,10 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node src/dynamixel_driver_node.cpp)
 add_executable(controller src/controller.cpp src/controller_main.cpp)
 add_executable(controller_demo src/demo.cpp)
+add_executable(trajectory_follower 
+  src/trajectory_follower_node.cpp
+  src/trajectory_follower.cpp
+)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -152,12 +156,14 @@ add_dependencies(controller dynamixel_driver_generate_messages_cpp)
 add_dependencies(controller_demo dynamixel_driver_gencpp)
 add_dependencies(controller_demo dynamixel_driver_generate_messages_cpp)
 
+
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(controller ${catkin_LIBRARIES})
 target_link_libraries(controller_demo ${catkin_LIBRARIES})
+target_link_libraries(trajectory_follower ${catkin_LIBRARIES})
 
 #############
 ## Install ##

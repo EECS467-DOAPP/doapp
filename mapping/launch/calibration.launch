@@ -62,4 +62,6 @@
   <node pkg="mapping" type="calibration_node" name="calibration_node" required="true"  output="screen">
   </node>
 
+  <!-- <include file="$(find dynamixel_driver)/launch/controller.launch"></include> -->
+
 </launch>
