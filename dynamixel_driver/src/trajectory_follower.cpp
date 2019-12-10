@@ -4,8 +4,50 @@
 namespace doapp
 {
 
-TrajectoryFollower::TrajectoryFollower() : port_("/dev/ttyUSB0"), protocol_(2.0), baud_rate_(2000000)
+TrajectoryFollower::TrajectoryFollower() : port_("/dev/ttyUSB0"), protocol_(2.0), baud_rate_(2000000), prev_waypt_(0), next_waypt_(0)
 {
+    current_trajectory_.header.stamp = ros::Time::now();
+    trajectory_msgs::JointTrajectoryPoint point;
+
+    point.positions = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+    point.time_from_start = ros::Duration(0.0);
+    current_trajectory_.points.push_back(point);
+
+    point.positions = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+    point.time_from_start = ros::Duration(2.0);
+    current_trajectory_.points.push_back(point);
+
+    point.positions = {0.0, 1.0, 0.0, 0.5, 0.0, 0.0};
+    point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+    point.time_from_start = ros::Duration(3.0);
+    current_trajectory_.points.push_back(point);
+
+    point.positions = {1.0, 1.0, 0.0, 0.5, 1.0, 0.0};
+    point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+    point.time_from_start = ros::Duration(4.0);
+    current_trajectory_.points.push_back(point);
+
+    point.positions = {0.0, 0.0, 1.0, -0.5, 1.0, 0.75};
+    point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+    point.time_from_start = ros::Duration(5.0);
+    current_trajectory_.points.push_back(point);
+
+    point.positions = {0.0, -1.0, 1.5, -1.5, 1.0, 0.75};
+    point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+    point.time_from_start = ros::Duration(6.0);
+    current_trajectory_.points.push_back(point);
+
+    point.positions = {0.0, -0.0, 0.5, -0.5, 0.0, 0.0};
+    point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+    point.time_from_start = ros::Duration(7.0);
+    current_trajectory_.points.push_back(point);
+
+    point.positions = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+    point.time_from_start = ros::Duration(8.0);
+    current_trajectory_.points.push_back(point);
 }
 
 TrajectoryFollower::~TrajectoryFollower()
@@ -72,13 +114,20 @@ void TrajectoryFollower::initialize_dynamixel()
     }
     ROS_INFO("Set joint mode");
 
-    if (!wb_.addSyncWriteHandler(30, 4))
+    constexpr uint16_t goal_position_address = 30;
+    constexpr uint16_t present_position_address = 36;
+
+    // Writes 4 bytes (2 to goal position and 2 to goal velocity)
+    if (!wb_.addSyncWriteHandler(goal_position_address, 4))
     {
         ROS_ERROR("Failed to add a sync write handler");
+        ros::shutdown();
     }
-    if (!wb_.addSyncReadHandler(36, 2))
+    // Reads 2 bytes from present position
+    if (!wb_.addSyncReadHandler(present_position_address, 6))
     {
         ROS_ERROR("Failed to add a sync read handler");
+        ros::shutdown();
     }
     ROS_INFO("Set sync handlers");
 }
@@ -87,6 +136,15 @@ void TrajectoryFollower::trajectory_callback(const trajectory_msgs::JointTraject
 {
     std::lock_guard<std::mutex> lock(mtx_);
     current_trajectory_ = *trajectory_msg;
+    prev_waypt_ = 0;
+    if (current_trajectory_.points.size() > 1)
+    {
+        next_waypt_ = 1;
+    }
+    else
+    {
+        next_waypt_ = 0;
+    }
 }
 
 void TrajectoryFollower::gripper_callback(const std_msgs::Float64ConstPtr &trajectory_msg)
@@ -97,14 +155,41 @@ void TrajectoryFollower::gripper_callback(const std_msgs::Float64ConstPtr &traje
 
 sensor_msgs::JointState TrajectoryFollower::follow_trajectory()
 {
+    sensor_msgs::JointState state;
+    auto now = ros::Time::now();
+    state.header.stamp = now;
+
+    const auto traj_start = current_trajectory_.header.stamp;
+    const auto prev_time = traj_start + current_trajectory_.points[prev_waypt_].time_from_start;
+    const auto next_time = traj_start + current_trajectory_.points[prev_waypt_].time_from_start;
+    const auto segment_duration = next_time - prev_time;
+
+    if (prev_waypt_ == next_waypt_)
+    {
+        state.position = current_trajectory_.points.back().positions;
+    }
+    else
+    {
+        const auto current_duration = now - prev_time;
+
+        const auto segment_progress = std::min(1.0, current_duration.toSec() / segment_duration.toSec());
+        state.position.reserve(joints_.num_joints);
+
+        const auto &prev_point = current_trajectory_.points[prev_waypt_];
+        const auto &next_point = current_trajectory_.points[next_waypt_];
+        for (size_t i = 0; i < joints_.num_joints; i++)
+        {
+            state.position[i] = (1.0 - segment_progress) * prev_point.positions[i] + segment_progress * next_point.positions[i];
+        }
+    }
 
     // Get current goal from trajectory
     std::vector<double> goal_angle;
     std::vector<double> goal_velocity;
     {
         std::lock_guard<std::mutex> lock(mtx_);
-        goal_angle = {0.0, 0.0, 0.0, 0.0, 0.0, gripper_};
-        goal_velocity = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+        goal_angle = current_trajectory_.points[prev_waypt_].positions;
+        goal_velocity = current_trajectory_.points[prev_waypt_].velocities;
     }
 
     std::vector<int16_t> goal_data;
@@ -122,27 +207,14 @@ sensor_msgs::JointState TrajectoryFollower::follow_trajectory()
         ROS_WARN("Could not sync write to dynamixel");
     }
 
-    int32_t read_data[joints_.num_joints];
-    if (!wb_.syncRead(0, joints_.joint_ids.data(), joints_.num_joints))
+    if (now > next_time)
     {
-        ROS_WARN("Could not sync read from dynamixel");
-    }
-    else
-    {
-        if (!wb_.getSyncReadData(0, read_data))
+        prev_waypt_ = next_waypt_;
+        if (next_waypt_ + 1 < current_trajectory_.points.size())
         {
-            ROS_WARN("Could not retrieve data from sync read");
+            next_waypt_++;
         }
     }
-
-    // ROS_INFO("Read data");
-    sensor_msgs::JointState state;
-    state.header.stamp = ros::Time::now();
-    // state.position.reserve(joints_.num_joints);
-    // for (size_t i = 0; i < joints_.num_joints; i++)
-    // {
-    //     state.position.push_back(wb_.convertValue2Radian(joints_.joint_ids[i], read_data[i]));
-    // }
 
     return state;
 }
