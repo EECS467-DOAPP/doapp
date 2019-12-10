@@ -49,6 +49,8 @@ private:
     DynamixelWorkbench wb_;
 
     std::mutex mtx_;
+    size_t prev_waypt_;
+    size_t next_waypt_;
     trajectory_msgs::JointTrajectory current_trajectory_;
     double gripper_;
 };
