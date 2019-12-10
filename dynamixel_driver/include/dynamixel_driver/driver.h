@@ -1,19 +1,17 @@
 #ifndef __DRIVER_H
 #define __DRIVER_H
 
-#define NUM_MOTORS 6       // number of motors on Rexarm
-#define NUM_ARM_MOTORS 5   // number of motors except gripper on Rexarm
-#define NUM_TYPE_SWITCH 3  // motor ID that switches from MX-28 to AX-12A
-#include <dynamixel_driver/ArmCommand.h>
-#include <dynamixel_driver/GripperCommand.h>
+#define NUM_MOTORS 6      // number of motors on Rexarm
+#define NUM_TYPE_SWITCH 3 // motor ID that switches from MX-28 to AX-12A
+#include <dynamixel_driver/MotorCommand.h>
 #include <dynamixel_workbench_msgs/DynamixelCommand.h>
 #include <dynamixel_workbench_msgs/DynamixelStateList.h>
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h>
-#include <cmath>
 #include <vector>
 
-enum MotorType {
+enum MotorType
+{
     MX_28,
     AX_12A
 };
@@ -22,7 +20,8 @@ enum MotorType {
  * @brief Wrapper of goal position for a specific Dynamixel motor
  *
  */
-struct DynamixelDriverGoal {
+struct DynamixelDriverGoal
+{
     MotorType type;
     int32_t goalPosition;
 };
@@ -31,10 +30,10 @@ struct DynamixelDriverGoal {
  * @brief Controller of goal positions of the six Dynamixel motors
  *
  */
-class DynamixelDriver {
+class DynamixelDriver
+{
 private:
     std::vector<DynamixelDriverGoal> cmd;
-    bool reachedNextGoal;
 
     void init();
     void setMsg();
@@ -49,7 +48,7 @@ public:
 
     // Constructors
     DynamixelDriver();
-    DynamixelDriver(std::vector<DynamixelDriverGoal>& goalList);
+    DynamixelDriver(std::vector<DynamixelDriverGoal> &goalList);
     DynamixelDriver(const uint8_t id, const int32_t goalpos);
     ~DynamixelDriver();
 
@@ -58,15 +57,11 @@ public:
 
     // Command setting
     void set(const uint8_t id, const int32_t goalpos);
-    void setArm(const std::vector<int>& goals);
-    void setGripper(const int32_t goalpos);
+    void set(const std::vector<int> &goals);
 
     // Subscriber handler
-    void handleState(const dynamixel_workbench_msgs::DynamixelStateList& msg);
-    bool handleArmCommand(dynamixel_driver::ArmCommand::Request& req,
-                          dynamixel_driver::ArmCommand::Response& res);
-    bool handleGripperCommand(dynamixel_driver::GripperCommand::Request& req,
-                              dynamixel_driver::GripperCommand::Response& res);
+    void handleState(const dynamixel_workbench_msgs::DynamixelStateList &msg);
+    void handleCommand(const dynamixel_driver::MotorCommand &msg);
 };
 
 #endif

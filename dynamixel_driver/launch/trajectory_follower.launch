@@ -1,0 +1,12 @@
+<launch>
+  <arg name="usb_port" default="/dev/ttyUSB0"/>
+  <arg name="dxl_baud_rate" default="2000000"/>
+  <arg name="dynamixel_protocol" default="2.0"/>
+  <param name="dynamixel_info" value="$(find dynamixel_driver)/config/all.yaml"/>
+
+  <param name="port" value="$(arg usb_port)"/>
+  <param name="dynamixel_protocol" value="$(arg dynamixel_protocol)"/>
+  <param name="baud_rate" value="$(arg dxl_baud_rate)"/>
+  <node name="trajectory_follower" pkg="dynamixel_driver" type="trajectory_follower" required="true" output="screen">
+  </node>
+</launch>
