@@ -76,6 +76,7 @@ private:
 
   distance_grid::Dimensions dimensions_;
   std::size_t slice_pitch_;
+  float resolution_;
   float x_offset_;
   float y_offset_;
 };

@@ -8,6 +8,8 @@
 #include <thread>
 #include <vector>
 
+#include <iostream>
+
 #include <immintrin.h>
 
 namespace doapp {
@@ -74,6 +76,7 @@ DistanceGrid::DistanceGrid(const distance_grid::Dimensions &dimensions)
              distance_grid::AVX_ALIGN ==
          0);
 
+  resolution_ = static_cast<float>(dimensions_.resolution);
   x_offset_ = static_cast<float>(0.5 * static_cast<double>(dimensions_.length) *
                                  dimensions_.resolution);
   y_offset_ = static_cast<float>(0.5 * static_cast<double>(dimensions_.width) *
@@ -111,9 +114,9 @@ void DistanceGrid::update(const distance_grid::KDTree &tree) noexcept {
 __host__ __device__ const __half &DistanceGrid::operator()(float x, float y,
                                                            float z) const
     noexcept {
-  const auto x_index = static_cast<std::size_t>(x + x_offset_);
-  const auto y_index = static_cast<std::size_t>(y + y_offset_);
-  const auto z_index = static_cast<std::size_t>(z);
+  const auto x_index = static_cast<std::size_t>((x + x_offset_) / resolution_);
+  const auto y_index = static_cast<std::size_t>((y + y_offset_) / resolution_);
+  const auto z_index = static_cast<std::size_t>(z / resolution_);
 
   return aligned_base_[slice_pitch_ * z_index + dimensions_.length * y_index +
                        x_index];
