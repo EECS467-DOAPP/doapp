@@ -5,8 +5,9 @@ set(CMAKE_CUDA_STANDARD 11)
 
 find_package(Threads REQUIRED)
 
-add_library(perturbator STATIC kdtree.cu)
+add_library(perturbator STATIC distance_grid.cu)
 target_link_libraries(perturbator PRIVATE Threads::Threads)
+target_include_directories(perturbator PUBLIC nanoflann/include)
 set_target_properties(perturbator PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
 
 add_library(trajectory_gen STATIC generate_trajectories.cu) # has to be static for separable compilation to link correctly (idk why)
@@ -23,9 +24,9 @@ target_link_libraries(test_rand PRIVATE perturbator)
 add_executable(test_matrix test_matrix.cu)
 target_link_libraries(test_matrix PRIVATE perturbator)
 
-add_executable(test_kdtree test_kdtree.cu)
-target_link_libraries(test_kdtree PRIVATE perturbator)
-set_target_properties(test_kdtree PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
+add_executable(test_distance_grid test_distance_grid.cu)
+target_link_libraries(test_distance_grid PRIVATE perturbator)
+set_target_properties(test_distance_grid PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
 
 add_executable(main main.cu)
 target_link_libraries(main PRIVATE ${CUDA_curand_LIBRARY}) # set by the cuda package
