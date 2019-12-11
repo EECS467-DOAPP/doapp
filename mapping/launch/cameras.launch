@@ -1,33 +1,26 @@
 <launch>
-  <arg name="serial_no_camera1"    			default="749512060038"/>
-  <arg name="serial_no_camera2"    			default="805212060268"/>
-  <arg name="serial_no_camera3"    			default="816612060669"/>
-  <arg name="camera1"              			default="camera1"/>
-  <arg name="camera2"              			default="camera2"/>
-  <arg name="camera3"              			default="camera3"/>
+  <arg name="serial_no_camera1"    			default="749512060038"/> 			<!-- Note: Replace with actual serial number -->
+  <arg name="serial_no_camera2"    			default="805212060268"/> 			<!-- Note: Replace with actual serial number -->
+  <arg name="serial_no_camera3"    			default="816612060669"/> 			<!-- Note: Replace with actual serial number -->
+  <arg name="camera1"              			default="camera1"/>		<!-- Note: Replace with camera name -->
+  <arg name="camera2"              			default="camera2"/>		<!-- Note: Replace with camera name -->
+  <arg name="camera3"              			default="camera3"/>		<!-- Note: Replace with camera name -->
   <arg name="tf_prefix_camera1"         default="$(arg camera1)"/>
   <arg name="tf_prefix_camera2"         default="$(arg camera2)"/>
   <arg name="tf_prefix_camera3"         default="$(arg camera3)"/>
   <arg name="initial_reset"             default="false"/>
-  <arg name="publish_pointclouds"       default="false"/>
-  <arg name="width"                     default="480"/>
-  <arg name="height"                    default="270"/>
 
   <group ns="$(arg camera1)">
     <include file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml">
       <arg name="serial_no"             value="$(arg serial_no_camera1)"/>
       <arg name="tf_prefix"         		value="$(arg tf_prefix_camera1)"/>
       <arg name="initial_reset"         value="$(arg initial_reset)"/>
-      <arg name="depth_fps"             value="30"/>
-      <arg name="enable_color"          value="true"/>
-      <arg name="enable_depth"          value="true"/>
-      <arg name="enable_infra1"         value="false"/>
-      <arg name="enable_infra2"         value="false"/>
-      <arg name="publish_tf"            value="true"/>
-      <arg name="enable_pointcloud"     value="$(arg publish_pointclouds)"/>
-      <arg name="required"              value="true"/>
-      <arg name="depth_width"         default="$(arg width)"/>
-      <arg name="depth_height"        default="$(arg height)"/>
+      <arg name="depth_fps"           value="30"/>
+      <arg name="enable_color"        value="true"/>
+      <arg name="enable_infra1"        value="false"/>
+      <arg name="enable_infra2"        value="false"/>
+      <arg name="publish_tf"               value="true"/>
+      <arg name="enable_pointcloud"   value="true"/>
     </include>
   </group>
 
@@ -36,16 +29,12 @@
       <arg name="serial_no"             value="$(arg serial_no_camera2)"/>
       <arg name="tf_prefix"		          value="$(arg tf_prefix_camera2)"/>
       <arg name="initial_reset"         value="$(arg initial_reset)"/>
-      <arg name="depth_fps"             value="30"/>
-      <arg name="enable_color"          value="true"/>
-      <arg name="enable_depth"          value="true"/>
-      <arg name="enable_infra1"         value="false"/>
-      <arg name="enable_infra2"         value="false"/>
-      <arg name="publish_tf"            value="true"/>
-      <arg name="enable_pointcloud"     value="$(arg publish_pointclouds)"/>
-      <arg name="required"              value="true"/>
-      <arg name="depth_width"         default="$(arg width)"/>
-      <arg name="depth_height"        default="$(arg height)"/>
+      <arg name="depth_fps"           value="30"/>
+      <arg name="enable_color"        value="true"/>
+      <arg name="enable_infra1"        value="false"/>
+      <arg name="enable_infra2"        value="false"/>
+      <arg name="publish_tf"               value="true"/>
+      <arg name="enable_pointcloud"   value="true"/>
     </include>
   </group>
 
@@ -54,16 +43,12 @@
       <arg name="serial_no"             value="$(arg serial_no_camera3)"/>
       <arg name="tf_prefix"		          value="$(arg tf_prefix_camera3)"/>
       <arg name="initial_reset"         value="$(arg initial_reset)"/>
-      <arg name="depth_fps"             value="30"/>
-      <arg name="enable_color"          value="true"/>
-      <arg name="enable_depth"          value="true"/>
-      <arg name="enable_infra1"         value="false"/>
-      <arg name="enable_infra2"         value="false"/>
-      <arg name="publish_tf"            value="true"/>
-      <arg name="enable_pointcloud"     value="$(arg publish_pointclouds)"/>
-      <arg name="required"              value="true"/>
-      <arg name="depth_width"         default="$(arg width)"/>
-      <arg name="depth_height"        default="$(arg height)"/>
+      <arg name="depth_fps"           value="30"/>
+      <arg name="enable_color"        value="true"/>
+      <arg name="enable_infra1"        value="false"/>
+      <arg name="enable_infra2"        value="false"/>
+      <arg name="publish_tf"               value="true"/>
+      <arg name="enable_pointcloud"   value="true"/>
     </include>
   </group>
 </launch>
