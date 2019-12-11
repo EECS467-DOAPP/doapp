@@ -1,69 +1,63 @@
 #include <ros/ros.h>
 
-#include <tf2_ros/transform_listener.h>
-#include <tf2_ros/transform_broadcaster.h>
-#include <tf2_ros/static_transform_broadcaster.h>
-#include <tf2_eigen/tf2_eigen.h>
-#include <tf2/transform_datatypes.h>
-#include <tf2/convert.h>
 #include <tf2/LinearMath/Transform.h>
+#include <tf2/convert.h>
+#include <tf2/transform_datatypes.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
 #include <yaml-cpp/yaml.h>
 
 #include <image_geometry/pinhole_camera_model.h>
 #include <image_transport/image_transport.h>
 
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/CameraInfo.h>
-#include <sensor_msgs/image_encodings.h>
 #include <depth_image_proc/depth_conversions.h>
+#include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/image_encodings.h>
 
 #include <std_msgs/Empty.h>
 
+#include <pcl/filters/crop_box.h>
+#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl_ros/transforms.h>
-#include <pcl/filters/crop_box.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/statistical_outlier_removal.h>
-#include <pcl/filters/radius_outlier_removal.h>
 
 #include <occupancy_grid/occupancy_grid.hpp>
 
-#include <string>
 #include <fstream>
-#include <mutex>
 #include <functional>
+#include <mutex>
+#include <string>
 
-namespace
-{
+namespace {
 
 using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
 constexpr size_t num_cameras = 3;
 
-enum class State
-{
+enum class State {
     WaitingForCamera,
     Mapping,
 };
 
 State state = State::WaitingForCamera;
 
-struct Extrinsics
-{
+struct Extrinsics {
     std::array<geometry_msgs::TransformStamped, num_cameras> poses_msg;
 
-    Extrinsics()
-    {
+    Extrinsics() {
     }
 
-}; // namespace
+};  // namespace
 
 Extrinsics extrinsics;
 
-void read_extrinsics(Extrinsics &extrinsics, YAML::Node node)
-{
-    for (size_t i = 0; i < num_cameras; i++)
-    {
+void read_extrinsics(Extrinsics &extrinsics, YAML::Node node) {
+    for (size_t i = 0; i < num_cameras; i++) {
         geometry_msgs::TransformStamped transform;
         transform.child_frame_id = "camera" + std::to_string(i + 1) + "_link";
         transform.header.frame_id = "arm_bundle";
@@ -81,8 +75,7 @@ void read_extrinsics(Extrinsics &extrinsics, YAML::Node node)
     }
 }
 
-void empty_callback(const std_msgs::Empty::Ptr &msg)
-{
+void empty_callback(const std_msgs::Empty::Ptr &msg) {
 }
 
 // Handles float or uint16 depths
@@ -90,8 +83,7 @@ void convert_sensor_msg_to_pcl(
     const sensor_msgs::ImageConstPtr &depth_msg,
     PointCloud::Ptr &cloud_msg,
     const image_geometry::PinholeCameraModel &model,
-    double range_max = 0.0)
-{
+    double range_max = 0.0) {
     // Use correct principal point from calibration
     float center_x = model.cx();
     float center_y = model.cy();
@@ -108,21 +100,15 @@ void convert_sensor_msg_to_pcl(
 
     const uint16_t *depth_row = reinterpret_cast<const uint16_t *>(&depth_msg->data[0]);
     int row_step = depth_msg->step / sizeof(uint16_t);
-    for (int v = 0; v < (int)depth_msg->height; v++, depth_row += row_step)
-    {
-        for (int u = 0; u < (int)depth_msg->width; u++)
-        {
+    for (int v = 0; v < (int)depth_msg->height; v++, depth_row += row_step) {
+        for (int u = 0; u < (int)depth_msg->width; u++) {
             uint16_t depth = depth_row[u];
 
             // Missing points denoted by NaNs
-            if (!depth_image_proc::DepthTraits<uint16_t>::valid(depth))
-            {
-                if (range_max != 0.0)
-                {
+            if (!depth_image_proc::DepthTraits<uint16_t>::valid(depth)) {
+                if (range_max != 0.0) {
                     depth = depth_image_proc::DepthTraits<uint16_t>::fromMeters(range_max);
-                }
-                else
-                {
+                } else {
                     continue;
                 }
             }
@@ -163,8 +149,7 @@ pcl::VoxelGrid<pcl::PointXYZ> voxel_filter_camera3;
 
 bool new_cloud = false;
 
-void depth_callback(int camera_id, const sensor_msgs::ImageConstPtr &depth_msg, const sensor_msgs::CameraInfoConstPtr &info_msg)
-{
+void depth_callback(int camera_id, const sensor_msgs::ImageConstPtr &depth_msg, const sensor_msgs::CameraInfoConstPtr &info_msg) {
     // Deproject points into a point cloud
     image_geometry::PinholeCameraModel model;
     model.fromCameraInfo(info_msg);
@@ -180,66 +165,58 @@ void depth_callback(int camera_id, const sensor_msgs::ImageConstPtr &depth_msg, 
     cloud_msg->is_dense = false;
     convert_sensor_msg_to_pcl(depth_msg, cloud_msg, model);
 
-    switch (camera_id)
-    {
-    case 1:
-    {
-        std::lock_guard<std::mutex> lock(camera1_mtx);
-        if (!camera1)
-        {
-            voxel_filter_camera1.setInputCloud(cloud_msg);
-            voxel_filter_camera1.filter(*downsampled_cloud);
-            box_filter_camera1.setInputCloud(downsampled_cloud);
-            box_filter_camera1.filter(*cropped_cloud);
+    switch (camera_id) {
+        case 1: {
+            std::lock_guard<std::mutex> lock(camera1_mtx);
+            if (!camera1) {
+                voxel_filter_camera1.setInputCloud(cloud_msg);
+                voxel_filter_camera1.filter(*downsampled_cloud);
+                box_filter_camera1.setInputCloud(downsampled_cloud);
+                box_filter_camera1.filter(*cropped_cloud);
 
-            pcl_ros::transformPointCloud("arm_bundle", *cropped_cloud, *camera1_cloud_pcl, tf_buffer);
-            camera1_cloud_pcl->header = pcl_conversions::toPCL(depth_msg->header);
+                pcl_ros::transformPointCloud("arm_bundle", *cropped_cloud, *camera1_cloud_pcl, tf_buffer);
+                camera1_cloud_pcl->header = pcl_conversions::toPCL(depth_msg->header);
 
-            camera1 = true;
+                camera1 = true;
+            }
+            break;
         }
-        break;
-    }
-    case 2:
-    {
-        std::lock_guard<std::mutex> lock(camera2_mtx);
-        if (!camera2)
-        {
-            voxel_filter_camera2.setInputCloud(cloud_msg);
-            voxel_filter_camera2.filter(*downsampled_cloud);
-            box_filter_camera2.setInputCloud(downsampled_cloud);
-            box_filter_camera2.filter(*cropped_cloud);
+        case 2: {
+            std::lock_guard<std::mutex> lock(camera2_mtx);
+            if (!camera2) {
+                voxel_filter_camera2.setInputCloud(cloud_msg);
+                voxel_filter_camera2.filter(*downsampled_cloud);
+                box_filter_camera2.setInputCloud(downsampled_cloud);
+                box_filter_camera2.filter(*cropped_cloud);
 
-            pcl_ros::transformPointCloud("arm_bundle", *cropped_cloud, *camera2_cloud_pcl, tf_buffer);
-            camera2_cloud_pcl->header = pcl_conversions::toPCL(depth_msg->header);
-            camera2 = true;
+                pcl_ros::transformPointCloud("arm_bundle", *cropped_cloud, *camera2_cloud_pcl, tf_buffer);
+                camera2_cloud_pcl->header = pcl_conversions::toPCL(depth_msg->header);
+                camera2 = true;
+            }
+            break;
         }
-        break;
-    }
-    case 3:
-    {
-        std::lock_guard<std::mutex> lock(camera3_mtx);
-        if (!camera3)
-        {
-            voxel_filter_camera3.setInputCloud(cloud_msg);
-            voxel_filter_camera3.filter(*downsampled_cloud);
-            box_filter_camera3.setInputCloud(downsampled_cloud);
-            box_filter_camera3.filter(*cropped_cloud);
+        case 3: {
+            std::lock_guard<std::mutex> lock(camera3_mtx);
+            if (!camera3) {
+                voxel_filter_camera3.setInputCloud(cloud_msg);
+                voxel_filter_camera3.filter(*downsampled_cloud);
+                box_filter_camera3.setInputCloud(downsampled_cloud);
+                box_filter_camera3.filter(*cropped_cloud);
 
-            pcl_ros::transformPointCloud("arm_bundle", *cropped_cloud, *camera3_cloud_pcl, tf_buffer);
-            camera3_cloud_pcl->header = pcl_conversions::toPCL(depth_msg->header);
+                pcl_ros::transformPointCloud("arm_bundle", *cropped_cloud, *camera3_cloud_pcl, tf_buffer);
+                camera3_cloud_pcl->header = pcl_conversions::toPCL(depth_msg->header);
 
-            camera3 = true;
+                camera3 = true;
+            }
+            break;
         }
-        break;
-    }
     }
 
     {
         std::lock_guard<std::mutex> lock1(camera1_mtx);
         std::lock_guard<std::mutex> lock2(camera2_mtx);
         std::lock_guard<std::mutex> lock3(camera3_mtx);
-        if (camera1 && camera2 && camera3)
-        {
+        if (camera1 && camera2 && camera3) {
             {
                 std::lock_guard<std::mutex> lock(merge_mtx);
                 PointCloud::Ptr merged_cloud(new PointCloud);
@@ -257,8 +234,7 @@ void depth_callback(int camera_id, const sensor_msgs::ImageConstPtr &depth_msg, 
     }
 }
 
-void set_filter_parameters()
-{
+void set_filter_parameters() {
     box_filter_camera1.setMin(Eigen::Vector4f(-size / 2.0, -size / 2.0, 0.0, 1.0));
     box_filter_camera1.setMax(Eigen::Vector4f(size / 2.0, size / 2.0, size, 1.0));
     box_filter_camera2.setMin(Eigen::Vector4f(-size / 2.0, -size / 2.0, 0.0, 1.0));
@@ -283,10 +259,9 @@ void set_filter_parameters()
     voxel_filter_camera3.setLeafSize(granularity, granularity, granularity);
 }
 
-} // namespace
+}  // namespace
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     ros::init(argc, argv, "Mapping");
     ros::NodeHandle node;
     ros::Rate loop_rate(100.0);
@@ -307,8 +282,7 @@ int main(int argc, char **argv)
 
     // Read extrinsics from calibration file
     std::string file_name;
-    if (!node.getParam("extrinsics_file", file_name))
-    {
+    if (!node.getParam("extrinsics_file", file_name)) {
         ROS_ERROR("Could not get extrinsics file from parameter server");
     }
     ROS_INFO("Reading extrinsics from %s", file_name.c_str());
@@ -340,65 +314,56 @@ int main(int argc, char **argv)
     ros::Publisher empty_pub = node.advertise<std_msgs::Empty>("/mapping_empty", 1);
 
     // Publish static transforms
-    for (size_t i = 0; i < num_cameras; i++)
-    {
+    for (size_t i = 0; i < num_cameras; i++) {
         broadcaster.sendTransform(extrinsics.poses_msg[i]);
     }
 
     doapp::OccupancyGrid grid(size, granularity);
 
     size_t count = 0;
-    while (ros::ok())
-    {
-        switch (state)
-        {
-        case State::WaitingForCamera:
-        {
-            ROS_INFO("Waiting for heartbeat");
-            ros::spinOnce();
-            if (heartbeat_sub.getNumPublishers() > 0)
-            {
-                ROS_INFO("Aquired heartbeat");
-                ROS_INFO("Waiting for extrinsics to settle.");
+    while (ros::ok()) {
+        switch (state) {
+            case State::WaitingForCamera: {
+                ROS_INFO("Waiting for heartbeat");
+                ros::spinOnce();
+                if (heartbeat_sub.getNumPublishers() > 0) {
+                    ROS_INFO("Aquired heartbeat");
+                    ROS_INFO("Waiting for extrinsics to settle.");
 
-                // Wait for extrinsics to settle
-                ros::Duration(5.0).sleep();
+                    // Wait for extrinsics to settle
+                    ros::Duration(5.0).sleep();
 
-                // Switch state
-                ROS_INFO("Switching to state Mapping");
-                state = State::Mapping;
+                    // Switch state
+                    ROS_INFO("Switching to state Mapping");
+                    state = State::Mapping;
 
-                start_time = ros::Time::now();
-            }
-            else
-            {
-                ros::Duration(1.0).sleep();
-            }
-            break;
-        }
-        case State::Mapping:
-        {
-            ros::spinOnce();
-
-            {
-                std::lock_guard<std::mutex> lock(merge_mtx);
-                if (new_cloud)
-                {
-                    cloud.header.frame_id = "arm_bundle";
-
-                    int num_points = cloud.size();
-                    ROS_INFO("There are %d points in the cloud.", num_points);
-                    std_msgs::Empty empty_msg;
-                    empty_pub.publish(empty_msg);
-                    new_cloud = false;
-
-                    cloud_pub.publish(cloud);
+                    start_time = ros::Time::now();
+                } else {
+                    ros::Duration(1.0).sleep();
                 }
+                break;
             }
+            case State::Mapping: {
+                ros::spinOnce();
 
-            loop_rate.sleep();
-            break;
-        }
+                {
+                    std::lock_guard<std::mutex> lock(merge_mtx);
+                    if (new_cloud) {
+                        cloud.header.frame_id = "arm_bundle";
+
+                        int num_points = cloud.size();
+                        ROS_INFO("There are %d points in the cloud.", num_points);
+                        std_msgs::Empty empty_msg;
+                        empty_pub.publish(empty_msg);
+                        new_cloud = false;
+
+                        cloud_pub.publish(cloud);
+                    }
+                }
+
+                loop_rate.sleep();
+                break;
+            }
         }
 
         count++;

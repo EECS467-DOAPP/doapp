@@ -1,12 +1,10 @@
 #include <dynamixel_driver/trajectory_follower.hpp>
 
-namespace
-{
+namespace {
 
-} // namespace
+}  // namespace
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     ros::init(argc, argv, "trajectory_follower");
     ros::NodeHandle nh;
     ros::Rate loop_rate(100.0);
@@ -36,8 +34,7 @@ int main(int argc, char **argv)
 
     follower.initialize_dynamixel();
 
-    while (ros::ok())
-    {
+    while (ros::ok()) {
         ros::spinOnce();
 
         sensor_msgs::JointState state = follower.follow_trajectory();

@@ -13,28 +13,24 @@
  * @return int: None
  */
 
-namespace demo
-{
+namespace demo {
 /**
  * @brief Initialize message from an empty vector
  * 
  * @param msg:  message to be initialized
  */
-void init(dynamixel_driver::MotorCommand &msg)
-{
-    for (int i = 0; i < NUM_MOTORS; ++i)
-    {
+void init(dynamixel_driver::MotorCommand &msg) {
+    for (int i = 0; i < NUM_MOTORS; ++i) {
         msg.commands.push_back((i < NUM_TYPE_SWITCH) ? 2048 : 512);
     }
 }
-} // namespace demo
+}  // namespace demo
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     ros::init(argc, argv, "dynamixel_driver_demo");
     ros::NodeHandle n;
     ros::Publisher pub = n.advertise<dynamixel_driver::MotorCommand>("motor_command", 1000);
-    ros::Rate loop_rate(20); // 50Hz loop rate
+    ros::Rate loop_rate(20);  // 50Hz loop rate
 
     /* For MX-28 motor testing */
     // const int32_t lower_bound = 1024;
@@ -49,24 +45,18 @@ int main(int argc, char **argv)
     demo::init(msg);
     int id = 3;
     msg.commands[id] = lower_bound;
-    while (ros::ok())
-    {
-        if (increasing)
-        {
+    while (ros::ok()) {
+        if (increasing) {
             if (msg.commands[id] < upper_bound)
                 msg.commands[id] += 1;
-            else
-            {
+            else {
                 msg.commands[id] = upper_bound;
                 increasing = false;
             }
-        }
-        else
-        {
+        } else {
             if (msg.commands[id] > lower_bound)
                 msg.commands[id] -= 1;
-            else
-            {
+            else {
                 msg.commands[id] = lower_bound;
                 increasing = true;
             }

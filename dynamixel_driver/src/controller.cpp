@@ -4,11 +4,9 @@
  * @brief initialize service client for sending commands
  * 
  */
-void DynamixelDriver::init()
-{
+void DynamixelDriver::init() {
     client_ = n_.serviceClient<dynamixel_workbench_msgs::DynamixelCommand>("/dynamixel_workbench/dynamixel_command");
-    for (int i = 0; i < NUM_MOTORS; ++i)
-    {
+    for (int i = 0; i < NUM_MOTORS; ++i) {
         visualization_msg.position.push_back(0.0f);
     }
 }
@@ -17,20 +15,17 @@ void DynamixelDriver::init()
  * @brief update message sent to visualization
  * 
  */
-void DynamixelDriver::setMsg()
-{
-    for (int i = 0; i < NUM_MOTORS; ++i)
-    {
-        switch (cmd[i].type)
-        {
-        case MotorType::MX_28:
-            visualization_msg.position[i] = cmd[i].goalPosition / 4096.0;
-            break;
-        case MotorType::AX_12A:
-            visualization_msg.position[i] = cmd[i].goalPosition / 1024.0;
+void DynamixelDriver::setMsg() {
+    for (int i = 0; i < NUM_MOTORS; ++i) {
+        switch (cmd[i].type) {
+            case MotorType::MX_28:
+                visualization_msg.position[i] = cmd[i].goalPosition / 4096.0;
+                break;
+            case MotorType::AX_12A:
+                visualization_msg.position[i] = cmd[i].goalPosition / 1024.0;
 
-        default:
-            break;
+            default:
+                break;
         }
     }
 }
@@ -40,20 +35,15 @@ void DynamixelDriver::setMsg()
  *          Constructs driver with all motors initialized to middle points.
  * 
  */
-DynamixelDriver::DynamixelDriver()
-{
+DynamixelDriver::DynamixelDriver() {
     init();
     // push back goal position commands
-    for (int i = 0; i < NUM_MOTORS; ++i)
-    {
+    for (int i = 0; i < NUM_MOTORS; ++i) {
         DynamixelDriverGoal goal;
-        if (i < NUM_TYPE_SWITCH)
-        {
+        if (i < NUM_TYPE_SWITCH) {
             goal.type = MotorType::MX_28;
             goal.goalPosition = 2048;
-        }
-        else
-        {
+        } else {
             goal.type = MotorType::AX_12A;
             goal.goalPosition = 512;
         }
@@ -70,8 +60,7 @@ DynamixelDriver::DynamixelDriver()
      * 
      * @param goalList: complete list of goal positions for six Dynamixel motors
      */
-DynamixelDriver::DynamixelDriver(std::vector<DynamixelDriverGoal> &goalList)
-{
+DynamixelDriver::DynamixelDriver(std::vector<DynamixelDriverGoal> &goalList) {
     init();
     cmd = goalList;
     setMsg();
@@ -83,11 +72,9 @@ DynamixelDriver::DynamixelDriver(std::vector<DynamixelDriverGoal> &goalList)
      * @param id:       id of Dynamixel motor
      * @param goalpos:  goal position for Dynamixel motor #[id]
      */
-DynamixelDriver::DynamixelDriver(const uint8_t id, const int32_t goalpos)
-{
+DynamixelDriver::DynamixelDriver(const uint8_t id, const int32_t goalpos) {
     init();
-    for (uint8_t i = 0; i < NUM_MOTORS; ++i)
-    {
+    for (uint8_t i = 0; i < NUM_MOTORS; ++i) {
         DynamixelDriverGoal goal;
 
         if (i < NUM_TYPE_SWITCH)
@@ -110,21 +97,16 @@ DynamixelDriver::DynamixelDriver(const uint8_t id, const int32_t goalpos)
  * @brief send the list of commands to Rexarm
  * 
  */
-void DynamixelDriver::send()
-{
+void DynamixelDriver::send() {
     dynamixel_workbench_msgs::DynamixelCommand srv;
-    for (int i = 0; i < NUM_MOTORS; ++i)
-    {
+    for (int i = 0; i < NUM_MOTORS; ++i) {
         srv.request.id = i;
         srv.request.addr_name = "Goal_Position";
         srv.request.value = cmd[i].goalPosition;
 
-        if (client_.call(srv))
-        {
+        if (client_.call(srv)) {
             ROS_DEBUG("Result: %d", srv.response.comm_result);
-        }
-        else
-        {
+        } else {
             ROS_ERROR("Failed to call service dynamixel_command");
         }
     }
@@ -136,8 +118,7 @@ void DynamixelDriver::send()
  * @param id:        motor ID
  * @param goalpos:   motor goal position
  */
-void DynamixelDriver::set(const uint8_t id, const int32_t goalpos)
-{
+void DynamixelDriver::set(const uint8_t id, const int32_t goalpos) {
     cmd[id].goalPosition = goalpos;
 }
 
@@ -146,11 +127,9 @@ void DynamixelDriver::set(const uint8_t id, const int32_t goalpos)
  * 
  * @param goals:    list of goals received from ROS message
  */
-void DynamixelDriver::set(const std::vector<int> &goals)
-{
+void DynamixelDriver::set(const std::vector<int> &goals) {
     cmd.clear();
-    for (int i = 0; i < NUM_MOTORS; ++i)
-    {
+    for (int i = 0; i < NUM_MOTORS; ++i) {
         DynamixelDriverGoal goal;
         goal.type = (i < NUM_TYPE_SWITCH) ? MotorType::MX_28 : MotorType::AX_12A;
         goal.goalPosition = goals[i];
@@ -164,13 +143,11 @@ void DynamixelDriver::set(const std::vector<int> &goals)
  * 
  * @param msg:  received ROS messages
  */
-void DynamixelDriver::handleState(const dynamixel_workbench_msgs::DynamixelStateList &msg)
-{
+void DynamixelDriver::handleState(const dynamixel_workbench_msgs::DynamixelStateList &msg) {
     size_t stateListSize = msg.dynamixel_state.size();
     ROS_INFO("State list length: %d", stateListSize);
 
-    for (size_t i = 0; i < stateListSize; ++i)
-    {
+    for (size_t i = 0; i < stateListSize; ++i) {
         dynamixel_workbench_msgs::DynamixelState state = msg.dynamixel_state[i];
         ROS_INFO("Current state [%d]: %d", state.id, state.present_position);
     }
@@ -182,8 +159,7 @@ void DynamixelDriver::handleState(const dynamixel_workbench_msgs::DynamixelState
  * 
  * @param msg:  received ROS messages
  */
-void DynamixelDriver::handleCommand(const dynamixel_driver::MotorCommand &msg)
-{
+void DynamixelDriver::handleCommand(const dynamixel_driver::MotorCommand &msg) {
     for (int i = 0; i < NUM_MOTORS; ++i)
         ROS_DEBUG("Received command %d at [%d]: ", msg.commands[i], i);
     set(msg.commands);

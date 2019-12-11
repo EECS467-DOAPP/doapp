@@ -4,11 +4,10 @@
 
 #include <dynamixel_driver/driver.h>
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     ros::init(argc, argv, "dynamixel_controller");
     DynamixelDriver driver;
-    ros::Rate loop_rate(100); // 100Hz loop rate
+    ros::Rate loop_rate(100);  // 100Hz loop rate
 
     // PART 1 -- Sending initialization motor commands
     driver.send();

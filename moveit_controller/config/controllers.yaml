@@ -1,0 +1,18 @@
+controller_list:
+  - name: arm_position_controller
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints:
+      - base_servo
+      - shoulder_servo
+      - elbow_servo
+      - wrist_servo
+      - wrist_rotate_servo
+  - name: gripper_controller
+    action_ns: gripper_action
+    type: GripperCommand
+    default: true
+    parallel: true
+    joints:
+      - gripper_servo
