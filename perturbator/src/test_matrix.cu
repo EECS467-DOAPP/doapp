@@ -1,4 +1,4 @@
-#include "matrix.cu"
+#include "matrix.cuh"
 
 #include <iostream>
 #include <cassert>

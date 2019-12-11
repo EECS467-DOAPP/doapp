@@ -139,12 +139,8 @@ set_target_properties(trajectory_gen PROPERTIES POSITION_INDEPENDENT_CODE ON CUD
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/example_node.cpp)
 
-add_executable(${PROJECT_NAME}_test_rand src/test_rand.cu)
-set_target_properties(${PROJECT_NAME}_test_rand PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(${PROJECT_NAME}_test_rand PRIVATE trajectory_gen)
-
 add_executable(${PROJECT_NAME}_test_matrix src/test_matrix.cu)
-set_target_properties(${PROJECT_NAME}_test_rand PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(${PROJECT_NAME}_test_matrix PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(${PROJECT_NAME}_test_matrix PRIVATE trajectory_gen)
 
 add_executable(${PROJECT_NAME}_main src/main.cu)
@@ -159,10 +155,6 @@ target_compile_options(${PROJECT_NAME}_test_trajectory_gen PRIVATE $<$<AND:$<COM
 
 add_executable(${PROJECT_NAME}_device_query src/device_query.cu)
 set_target_properties(${PROJECT_NAME}_device_query PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
-
-add_executable(${PROJECT_NAME}_test_distance_grid src/test_distance_grid.cu)
-target_link_libraries(${PROJECT_NAME}_test_distance_grid PRIVATE trajectory_gen)
-set_target_properties(${PROJECT_NAME}_test_distance_grid PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
