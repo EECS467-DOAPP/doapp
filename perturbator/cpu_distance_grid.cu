@@ -136,30 +136,6 @@ void CPUDistanceGrid::update_thread(const cpu_distance_grid::KDTree &tree,
   const double y_min =
       0.5 * dimensions_.resolution / static_cast<double>(dimensions_.length);
 
-  std::size_t x = 0;
-  std::size_t y = 0;
-  float x_as_float;
-  float y_as_float;
-
-  const auto increment_xy = [this, x_min, y_min, &x, &y, &x_as_float,
-                             &y_as_float] {
-    ++x;
-
-    if (x >= dimensions_.length) {
-      x = 0;
-      ++y;
-
-      if (y >= dimensions_.height) {
-        y = 0;
-      }
-    }
-
-    x_as_float = static_cast<float>(x_min + static_cast<double>(x) *
-                                                dimensions_.resolution);
-    y_as_float = static_cast<float>(y_min + static_cast<double>(y) *
-                                                dimensions_.resolution);
-  };
-
   const auto get_distance = [&tree](float x, float y, float z) {
     std::size_t return_index;
     float out_distance_squared;
@@ -177,47 +153,52 @@ void CPUDistanceGrid::update_thread(const cpu_distance_grid::KDTree &tree,
 
   for (std::size_t z = min_height; z < max_height; ++z) {
     float *const slice_base_ptr = aligned_base_ + slice_pitch_ * z;
-    float *write_ptr = slice_base_ptr;
     const auto z_as_float =
         static_cast<float>(dimensions_.resolution * static_cast<double>(z));
 
-    float elems[8];
-    std::size_t n = (slice_numel + 7) / 8;
+    std::size_t x = 0;
+    std::size_t y = 0;
+    float x_as_float = static_cast<float>(x_min);
+    float y_as_float = static_cast<float>(y_min);
 
-    // https://en.wikipedia.org/wiki/Duff%27s_device
-    switch (slice_numel % 8) {
-    case 0:
-      do {
-        elems[7] = get_distance(x_as_float, y_as_float, z_as_float);
-        increment_xy();
-      case 7:
-        elems[6] = get_distance(x_as_float, y_as_float, z_as_float);
-        increment_xy();
-      case 6:
-        elems[5] = get_distance(x_as_float, y_as_float, z_as_float);
-        increment_xy();
-      case 5:
-        elems[4] = get_distance(x_as_float, y_as_float, z_as_float);
-        increment_xy();
-      case 4:
-        elems[3] = get_distance(x_as_float, y_as_float, z_as_float);
-        increment_xy();
-      case 3:
-        elems[2] = get_distance(x_as_float, y_as_float, z_as_float);
-        increment_xy();
-      case 2:
-        elems[1] = get_distance(x_as_float, y_as_float, z_as_float);
-        increment_xy();
-      case 1:
-        elems[0] = get_distance(x_as_float, y_as_float, z_as_float);
-        increment_xy();
+    const auto increment_xy = [this, x_min, y_min, &x, &y, &x_as_float,
+                               &y_as_float] {
+      ++x;
 
-        const __m256 elems_vec = _mm256_set_ps(
-            elems[7], elems[6], elems[5], elems[4],
-            elems[3], elems[2], elems[1], elems[0]);
-        _mm256_store_ps(write_ptr, elems_vec);
-        write_ptr += 8;
-      } while (--n > 0);
+      if (x >= dimensions_.length) {
+        x = 0;
+        ++y;
+
+        if (y >= dimensions_.height) {
+          y = 0;
+        }
+      }
+
+      x_as_float = static_cast<float>(x_min + static_cast<double>(x) *
+                                                  dimensions_.resolution);
+      y_as_float = static_cast<float>(y_min + static_cast<double>(y) *
+                                                  dimensions_.resolution);
+    };
+
+    std::size_t slice_index = 0;
+
+    for (; slice_index < slice_numel; slice_index += 8) {
+      float elems[8] = {};
+
+      std::size_t to_fill = 8;
+      if (slice_numel - slice_index < 8) {
+        to_fill -= slice_numel % 8;
+      }
+
+      for (std::size_t i = 0; i < to_fill; ++i) {
+        elems[i] = get_distance(x_as_float, y_as_float, z_as_float);
+        increment_xy();
+      }
+
+      const __m256 elems_vec =
+          _mm256_set_ps(elems[7], elems[6], elems[5], elems[4], elems[3],
+                        elems[2], elems[1], elems[0]);
+      _mm256_store_ps(slice_base_ptr + slice_index, elems_vec);
     }
   }
 }
