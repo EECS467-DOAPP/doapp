@@ -8,8 +8,6 @@
 #include <thread>
 #include <vector>
 
-#include <iostream>
-
 #include <immintrin.h>
 
 namespace doapp {

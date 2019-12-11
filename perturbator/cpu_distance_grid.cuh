@@ -5,8 +5,6 @@
 
 #include "matrix.cuh"
 
-#include <cuda_fp16.h>
-
 #include <nanoflann.hpp>
 
 namespace doapp {
@@ -24,8 +22,7 @@ public:
   using coord_t = float;
 
   explicit MatrixPointcloudAdaptor(const Matrix<float, Dynamic, 3> &m) noexcept
-      : matrix_ptr_(&m) {
-  }
+      : matrix_ptr_(&m) {}
 
   std::size_t kdtree_get_point_count() const noexcept {
     assert(matrix_ptr_);
