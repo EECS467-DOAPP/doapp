@@ -23,13 +23,13 @@ Matrix<float, Dynamic, 3> random_pointcloud(std::size_t num_points) {
 }
 
 int main() {
-  constexpr std::size_t NUM_POINTS = 1 << 4;
+  constexpr std::size_t NUM_POINTS = 1 << 15;
   const auto pointcloud = random_pointcloud(NUM_POINTS);
 
-  constexpr std::size_t LENGTH = 10; // 1m
-  constexpr std::size_t WIDTH = 10;  // 1m
-  constexpr std::size_t HEIGHT = 10; // 1m
-  constexpr double RESOLUTION = 0.1; // 10cm
+  constexpr std::size_t LENGTH = 100; // 1m
+  constexpr std::size_t WIDTH = 100;  // 1m
+  constexpr std::size_t HEIGHT = 100; // 1m
+  constexpr double RESOLUTION = 0.01; // 10cm
 
   constexpr distance_grid::Dimensions dims = {LENGTH, WIDTH, HEIGHT,
                                               RESOLUTION};

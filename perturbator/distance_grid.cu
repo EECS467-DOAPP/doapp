@@ -62,8 +62,14 @@ __device__ void atomic_min(volatile float *memory, float value) noexcept {
   }
 }
 
+struct float3 {
+  float x;
+  float y;
+  float z;
+};
+
 __global__ static void
-update_grid(Dimensions dimensions, const float *pointcloud, float *output,
+update_grid(Dimensions dimensions, const float3 *pointcloud, float *output,
             std::uint32_t num_points,
             std::uint32_t points_per_pointcloud_partition,
             std::uint32_t cells_per_cell_partition,
@@ -72,39 +78,42 @@ update_grid(Dimensions dimensions, const float *pointcloud, float *output,
   // copy a partition of the pointcloud from global to shared memory
 
   extern __shared__ float shared[];
-  float *result_grid = shared;
-  float *pointcloud_partition = result_grid + cells_per_cell_partition;
+  float *const result_grid = shared;
+  float *const result_grid_end = result_grid + cells_per_cell_partition;
+
+  float3 *const pointcloud_partition =
+      reinterpret_cast<float3 *>(result_grid_end);
+  float3 *const pointcloud_partition_end =
+      pointcloud_partition + points_per_pointcloud_partition;
 
   // blockIdx.x: pointcloud partition index
   // blockIdx.y: cell partition index
 
-  const float *const global_partition_begin =
-      pointcloud + 3 * points_per_pointcloud_partition * blockIdx.x;
-  const float *const global_partition_end =
-      min(global_partition_begin + 3 * points_per_pointcloud_partition,
-          pointcloud + 3 * num_points);
+  const float3 *const global_partition_begin =
+      pointcloud + points_per_pointcloud_partition * blockIdx.x;
+  const float3 *const global_partition_end =
+      min(global_partition_begin + points_per_pointcloud_partition,
+          pointcloud + num_points);
 
-  const float *const this_thread_global_partition_begin =
-      global_partition_begin + 3 * points_to_copy_per_thread * threadIdx.x;
-  const float *const this_thread_global_partition_end =
-      min(this_thread_global_partition_begin + 3 * points_to_copy_per_thread,
+  const float3 *const this_thread_global_partition_begin =
+      global_partition_begin + points_to_copy_per_thread * threadIdx.x;
+  const float3 *const this_thread_global_partition_end =
+      min(this_thread_global_partition_begin + points_to_copy_per_thread,
           global_partition_end);
 
-  float *this_thread_shared_partition_start =
-      pointcloud_partition + 3 * points_to_copy_per_thread * threadIdx.x;
-  float *this_thread_shared_partition_end =
-      min(this_thread_shared_partition_start + 3 * points_to_copy_per_thread,
-          pointcloud_partition + 3 * points_per_pointcloud_partition);
+  float3 *this_thread_shared_partition_begin =
+      pointcloud_partition + points_to_copy_per_thread * threadIdx.x;
+  float3 *this_thread_shared_partition_end =
+      min(this_thread_shared_partition_begin + points_to_copy_per_thread,
+          pointcloud_partition + points_per_pointcloud_partition);
 
-  const float *global_read_head = this_thread_global_partition_begin;
-  float *shared_write_head = this_thread_shared_partition_start;
+  const float3 *global_read_head = this_thread_global_partition_begin;
+  float3 *shared_write_head = this_thread_shared_partition_begin;
 
   for (; global_read_head < this_thread_global_partition_end &&
          shared_write_head < this_thread_shared_partition_end;
-       global_read_head += 3, shared_write_head += 3) {
-    shared_write_head[0] = global_read_head[0];
-    shared_write_head[1] = global_read_head[1];
-    shared_write_head[2] = global_read_head[2];
+       ++global_read_head, ++shared_write_head) {
+    *shared_write_head = *global_read_head;
   }
 
   __syncthreads();
@@ -141,19 +150,18 @@ update_grid(Dimensions dimensions, const float *pointcloud, float *output,
 
     float cell_value_sq = HUGE_VALF;
 
-    for (float *point = this_thread_shared_partition_start;
-         point < this_thread_shared_partition_end; point += 3) {
-      const float point_x = point[0];
-      const float point_y = point[1];
-      const float point_z = point[2];
+    for (float3 *point = pointcloud_partition; point < pointcloud_partition_end;
+         ++point) {
+      const float point_x = point->x;
+      const float point_y = point->y;
+      const float point_z = point->z;
 
       const float new_distance_sq =
           square(point_x - x) + square(point_y - y) + square(point_z - z);
       cell_value_sq = min(cell_value_sq, new_distance_sq);
     }
 
-    result_grid[cell_index - this_thread_cell_offset] =
-        std::sqrt(cell_value_sq);
+    result_grid[cell_index] = std::sqrt(cell_value_sq);
   }
 
   const std::uint32_t this_thread_cell_last =
@@ -175,6 +183,9 @@ update_grid(Dimensions dimensions, const float *pointcloud, float *output,
 DistanceGrid::DistanceGrid(const distance_grid::Dimensions &dimensions) noexcept
     : distances_(dimensions.length * dimensions.width * dimensions.height),
       dimensions_(dimensions) {
+  std::fill(distances_.data(), distances_.data() + distances_.size(),
+            HUGE_VALF);
+
   x_offset_ = static_cast<float>(0.5 * static_cast<double>(dimensions_.length) *
                                  static_cast<double>(dimensions_.resolution));
   y_offset_ = static_cast<float>(0.5 * static_cast<double>(dimensions_.width) *
@@ -196,8 +207,7 @@ void DistanceGrid::update(const Matrix<float, Dynamic, 3> &pointcloud) {
   std::fill(distances_.data(), distances_.data() + distances_.size(),
             HUGE_VALF);
 
-  constexpr std::uint32_t SHARED_MEMORY_SIZE =
-      48 * (1 << 10); // 48 KiB on Turing architecture
+  constexpr std::uint32_t SHARED_MEMORY_SIZE = 48 * (1 << 10);
 
   constexpr std::uint32_t POINTCLOUD_PARTITION_MAX_ALLOCATION =
       SHARED_MEMORY_SIZE / 4;
@@ -241,8 +251,9 @@ void DistanceGrid::update(const Matrix<float, Dynamic, 3> &pointcloud) {
   distance_grid::
       update_grid<<<dim3(num_pointcloud_partitions, num_cell_partitions, 1),
                     BLOCK_SIZE, SHARED_MEMORY_SIZE>>>(
-          dimensions_, pointcloud.data(), distances_.data(),
-          static_cast<std::uint32_t>(pointcloud.num_rows()),
+          dimensions_,
+          reinterpret_cast<const distance_grid::float3 *>(pointcloud.data()),
+          distances_.data(), static_cast<std::uint32_t>(pointcloud.num_rows()),
           points_per_pointcloud_partition, cells_per_cell_partition,
           points_to_copy_per_thread, cells_to_write_per_thread);
 
