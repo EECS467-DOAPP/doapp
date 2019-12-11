@@ -5,9 +5,11 @@
 #include <cassert>
 #include <cstddef>
 #include <initializer_list>
+#include <iterator>
 #include <limits>
 #include <new>
 #include <type_traits>
+#include <utility>
 
 namespace doapp {
 namespace detail {
@@ -39,11 +41,26 @@ public:
 
   __host__ __device__ T *data() const noexcept { return data_; }
 
+  __host__ __device__ void swap(Slice<T> &other) {
+    assert(len_ == other.len_);
+
+    using std::swap;
+
+    swap(data_, other.data_);
+    swap(len_, other.len_);
+    swap(pitch_, other.pitch_);
+  }
+
 private:
   T *data_ = nullptr;
   std::size_t len_ = 0;
   std::size_t pitch_ = 1;
 };
+
+template <typename T>
+__host__ __device__ void swap(Slice<T> &lhs, Slice<T> &rhs) {
+  lhs.swap(rhs);
+}
 
 template <typename T, std::size_t N> class Vector {
 public:

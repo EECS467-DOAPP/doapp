@@ -14,6 +14,26 @@
 #include <sys/random.h>
 
 namespace doapp {
+namespace detail {
+
+void fill_with_randomness(void *buf, std::size_t len) {
+  std::uint8_t *write_head = static_cast<std::uint8_t *>(buf);
+  std::uint8_t *const last = write_head + len;
+
+  while (write_head < last) {
+    const ssize_t this_num_initialized_or_err =
+        getrandom(write_head, static_cast<std::size_t>(last - write_head), 0);
+
+    if (this_num_initialized_or_err == -1) {
+      throw std::system_error(errno, std::generic_category(),
+                              "doapp::detail::fill_with_randomness: getrandom");
+    }
+
+    write_head += this_num_initialized_or_err;
+  }
+}
+
+} // namespace detail
 
 class Pcg32 {
 public:
@@ -30,23 +50,8 @@ public:
     Vector<Pcg32, Dynamic> result(n);
 
     std::vector<std::uint64_t> initializers(n * 2);
-
-    std::uint8_t *write_head =
-        reinterpret_cast<std::uint8_t *>(initializers.data());
-    std::uint8_t *const last =
-        write_head + initializers.size() * sizeof(std::uint64_t);
-
-    while (write_head < last) {
-      const ssize_t this_num_initialized_or_err =
-          getrandom(write_head, static_cast<std::size_t>(last - write_head), 0);
-
-      if (this_num_initialized_or_err == -1) {
-        throw std::system_error(errno, std::generic_category(),
-                                "doapp::Pcg32::from_randomness: getrandom");
-      }
-
-      write_head += this_num_initialized_or_err;
-    }
+    detail::fill_with_randomness(initializers.data(),
+                                 initializers.size() * sizeof(std::uint64_t));
 
     for (std::size_t i = 0; i < n; ++i) {
       result[i] = Pcg32(initializers[2 * i], initializers[2 * i + 1]);
