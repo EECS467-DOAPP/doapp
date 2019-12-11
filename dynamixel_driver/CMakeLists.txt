@@ -1,15 +1,22 @@
-cmake_minimum_required(VERSION 3.11)
-project(pertubator LANGUAGES CUDA CXX)
+cmake_minimum_required(VERSION 2.8.3)
+project(dynamixel_driver)
 
-set(CMAKE_CUDA_STANDARD 14)
+## Compile as C++11, supported in ROS Kinetic and newer
+# add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED roscpp sensor_msgs trajectory_msgs)
+find_package(catkin REQUIRED COMPONENTS
+  dynamixel_workbench_controllers
+  roscpp
+  rospy
+  std_msgs
+  message_generation
+)
 
 ## System dependencies are found with CMake's conventions
-find_package(Threads REQUIRED)
+# find_package(Boost REQUIRED COMPONENTS system)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -44,16 +51,14 @@ find_package(Threads REQUIRED)
 ## Generate messages in the 'msg' folder
 # add_message_files(
 #   FILES
-#   Message1.msg
-#   Message2.msg
+#   MotorCommand.msg
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  MotorCommand.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -63,10 +68,10 @@ find_package(Threads REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -98,9 +103,9 @@ find_package(Threads REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
-#  LIBRARIES example
-  CATKIN_DEPENDS roscpp sensor_msgs trajectory_msgs
+ INCLUDE_DIRS include
+#  LIBRARIES dynamixel_driver
+ CATKIN_DEPENDS dynamixel_workbench_controllers roscpp rospy std_msgs message_runtime
 #  DEPENDS system_lib
 )
 
@@ -111,23 +116,14 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
- include
- ${catkin_INCLUDE_DIRS}
+  include
+  ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/example.cpp
+#   src/${PROJECT_NAME}/dynamixel_driver.cpp
 # )
-
-# ugly, but it works :(
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --compiler-options -march=native")
-
-add_library(trajectory_gen STATIC src/common.cu src/cpu_distance_grid.cu src/generate_trajectories.cu src/planning_state.cu)
-target_link_libraries(trajectory_gen PRIVATE Threads::Threads)
-target_link_libraries(trajectory_gen PUBLIC ${CUDA_curand_LIBRARY} ${catkin_LIBRARIES})
-target_include_directories(trajectory_gen PUBLIC nanoflann/include ${catkin_INCLUDE_DIRS})
-set_target_properties(trajectory_gen PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -137,32 +133,9 @@ set_target_properties(trajectory_gen PROPERTIES POSITION_INDEPENDENT_CODE ON CUD
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/example_node.cpp)
-
-add_executable(${PROJECT_NAME}_test_rand src/test_rand.cu)
-set_target_properties(${PROJECT_NAME}_test_rand PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(${PROJECT_NAME}_test_rand PRIVATE trajectory_gen)
-
-add_executable(${PROJECT_NAME}_test_matrix src/test_matrix.cu)
-set_target_properties(${PROJECT_NAME}_test_rand PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(${PROJECT_NAME}_test_matrix PRIVATE trajectory_gen)
-
-add_executable(${PROJECT_NAME}_main src/main.cu)
-set_target_properties(${PROJECT_NAME}_main PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(${PROJECT_NAME}_main PUBLIC trajectory_gen ${catkin_LIBRARIES})
-target_compile_options(${PROJECT_NAME}_main PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>)
-
-add_executable(${PROJECT_NAME}_test_trajectory_gen src/generate_trajectories.test.cu)
-set_target_properties(${PROJECT_NAME}_test_trajectory_gen PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(${PROJECT_NAME}_test_trajectory_gen PRIVATE trajectory_gen)
-target_compile_options(${PROJECT_NAME}_test_trajectory_gen PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>)
-
-add_executable(${PROJECT_NAME}_device_query src/device_query.cu)
-set_target_properties(${PROJECT_NAME}_device_query PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
-
-add_executable(${PROJECT_NAME}_test_distance_grid src/test_distance_grid.cu)
-target_link_libraries(${PROJECT_NAME}_test_distance_grid PRIVATE trajectory_gen)
-set_target_properties(${PROJECT_NAME}_test_distance_grid PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
+# add_executable(${PROJECT_NAME}_node src/dynamixel_driver_node.cpp)
+add_executable(controller src/controller.cpp src/controller_main.cpp)
+add_executable(controller_demo src/demo.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -173,11 +146,17 @@ set_target_properties(${PROJECT_NAME}_test_distance_grid PROPERTIES POSITION_IND
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(controller dynamixel_driver_gencpp)
+add_dependencies(controller dynamixel_driver_generate_messages_cpp)
+add_dependencies(controller_demo dynamixel_driver_gencpp)
+add_dependencies(controller_demo dynamixel_driver_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
+target_link_libraries(controller ${catkin_LIBRARIES})
+target_link_libraries(controller_demo ${catkin_LIBRARIES})
 
 #############
 ## Install ##
@@ -198,8 +177,6 @@ set_target_properties(${PROJECT_NAME}_test_distance_grid PROPERTIES POSITION_IND
 # install(TARGETS ${PROJECT_NAME}_node
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
-install(TARGETS ${PROJECT_NAME}_main RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-install(TARGETS ${PROJECT_NAME}_test_trajectory_gen RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 ## Mark libraries for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_libraries.html
@@ -228,7 +205,7 @@ install(TARGETS ${PROJECT_NAME}_test_trajectory_gen RUNTIME DESTINATION ${CATKIN
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_example.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_dynamixel_driver.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
