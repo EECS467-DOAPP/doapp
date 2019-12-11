@@ -1,6 +1,7 @@
 #include "generate_trajectories.cuh"
 #include "gpu_error_check.cuh"
 #include "unique_ptr.cuh"
+#include "vector.cuh"
 
 #include <algorithm>
 #include <cassert>
@@ -210,7 +211,8 @@ int main(int argc, char** argv) {
     init_cudarand<<<num_blocks, num_threads>>>(dev_rngs.get(), num_rngs);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
-    optimize_trajectories<<<gridDim, blockDim>>>(dev_trajectories.get(), dev_noise_vectors.get(), dev_noisy_trajectories.get(), dev_rngs.get(), dev_velocities.get(), dev_accelerations.get(), dev_smoothness.get(), dev_scores.get(), dev_update_vector.get(), d*std::max(n,m), n, d, m, deltaT);
+    doapp::Vector<bool, Dynamic> flag(1);
+    //optimize_trajectories<<<gridDim, blockDim>>>(dev_trajectories.get(), dev_noise_vectors.get(), dev_noisy_trajectories.get(), dev_rngs.get(), dev_velocities.get(), dev_accelerations.get(), dev_smoothness.get(), dev_scores.get(), dev_update_vector.get(), flag.data(), d*std::max(n,m), n, d, m, deltaT);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
     std::vector<float> kernel_trajectories(k*n*d);
