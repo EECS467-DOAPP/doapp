@@ -17,16 +17,16 @@ int main(int argc, char** argv) {
 
     const doapp::cpu_distance_grid::Dimensions grid_dims = {100, 100, 100, 0.01f};
 
-    unsigned int k = 1000, n = 50, m = 50, d = 5; //TODO: have m be calculated from 1024/(n*d)
+    unsigned int k = 1000, n = 50, m = 50, d = doapp::num_joints; //TODO: have m be calculated from 1024/(n*d)
     m = 1024 / n / d;
     //also TODO: have k, n, m, d be grabbed from ParamServer
     std::cout << "Running with k = " << k << ", n = " << n << ", m = " << m << std::endl;
     PlanningState planning_state(k, m, n, d, grid_dims);
 
-    ros::Subscriber state_subscriber = node_handle.subscribe("joint_states", 1, &PlanningState::updateArmState, &planning_state);
+    ros::Subscriber state_subscriber = node_handle.subscribe("joint_state", 1, &PlanningState::updateArmState, &planning_state);
     ros::Subscriber goal_subscriber = node_handle.subscribe("goal_state", 1, &PlanningState::updateGoalState, &planning_state); //don't really want to buffer old requests
     //no clue what loop_rate should be
-    ros::Rate loop_rate(.10);
+    ros::Rate loop_rate(1);
     ros::Publisher trajectory_publisher = node_handle.advertise<trajectory_msgs::JointTrajectory>("/joint_trajectory", 2);
     while(ros::ok()) {
         ros::spinOnce();

@@ -7,7 +7,7 @@
 namespace doapp {
 //joint angle size declarations
 //TODO: since this has to be declared at compile time, consider making dimensionality of waypoints/noise vectors also known at compile time
-constexpr int num_joints = 5;
+constexpr int num_joints = 4;
 extern __constant__ float min_joint_angles[num_joints];
 extern __constant__ float max_joint_angles[num_joints];
 extern float host_min_joint_angles[num_joints];

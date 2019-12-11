@@ -1,6 +1,8 @@
 #include <dynamixel_driver/trajectory_follower.hpp>
 #include <vector>
+#include <iostream>
 
+constexpr double DEG2RAD = (2*M_PI/360.0);
 namespace doapp
 {
 
@@ -14,6 +16,7 @@ TrajectoryFollower::TrajectoryFollower() : port_("/dev/ttyUSB0"), protocol_(2.0)
     point.time_from_start = ros::Duration(0.0);
     current_trajectory_.points.push_back(point);
 
+
     point.positions = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
     point.time_from_start = ros::Duration(2.0);
@@ -24,8 +27,12 @@ TrajectoryFollower::TrajectoryFollower() : port_("/dev/ttyUSB0"), protocol_(2.0)
     point.time_from_start = ros::Duration(3.0);
     current_trajectory_.points.push_back(point);
 
-    point.positions = {1.0, 1.0, 0.0, 0.5, 1.0, 0.0};
+    point.positions = {117.14 * DEG2RAD, 25.78 * DEG2RAD, 52.26 * DEG2RAD, 70.79 * DEG2RAD, 0, 0};
     point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
+    //point.velocities = {0, 0, 0, 0, 0, 0};
+
+    //point.positions = {1.0, 1.0, 0.0, 0.5, 1.0, 0.0};
+    //point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
     point.time_from_start = ros::Duration(4.0);
     current_trajectory_.points.push_back(point);
 
@@ -136,6 +143,7 @@ void TrajectoryFollower::trajectory_callback(const trajectory_msgs::JointTraject
 {
     std::lock_guard<std::mutex> lock(mtx_);
     current_trajectory_ = *trajectory_msg;
+    std::cout << "NEW TRAJECTORY WITH " << current_trajectory_.points.size() << " POINTS" << std::endl;
     prev_waypt_ = 0;
     if (current_trajectory_.points.size() > 1)
     {

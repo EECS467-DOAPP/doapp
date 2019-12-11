@@ -1,7 +1,11 @@
 #include "common.cuh"
 
+/*
 #define MIN_JOINT_ANGLES {1024.0f, 1024.0f, 1024.0f, 0.0f, 0.0f}
 #define MAX_JOINT_ANGLES {3072.0f, 3072.0f, 3072.0f, 2013.0f, 2013.0f}
+*/
+#define MIN_JOINT_ANGLES {1024.0f, 1024.0f, 1024.0f, 0.0f}
+#define MAX_JOINT_ANGLES {3072.0f, 3072.0f, 3072.0f, 2013.0f}
 
 namespace doapp {
 

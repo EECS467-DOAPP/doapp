@@ -44,17 +44,12 @@ PlanningState::PlanningState(unsigned int num_initial_trajectories_,
 }
 
 std::vector<float> PlanningState::plan_lerp() const {
-  std::vector<float> result(num_waypoints * waypoint_dim);
-  std::vector<float> step_sizes(waypoint_dim);
-  for (size_t dim = 0; dim < waypoint_dim; ++dim) {
-    step_sizes[dim] = (goal_state[dim] - current_state[dim]) / num_waypoints;
-  }
-  for (size_t waypoint = 0; waypoint < num_waypoints; ++waypoint) {
-    for (size_t dim = 0; dim < waypoint_dim; ++dim) {
-      result[waypoint * waypoint_dim + dim] =
-          current_state[dim] + waypoint * step_sizes[dim];
+    ROS_ASSERT(goal_state.size() >= waypoint_dim);
+    std::vector<float> result(num_waypoints * waypoint_dim);
+    std::vector<float> step_sizes(waypoint_dim);
+    for(size_t dim = 0; dim < waypoint_dim; ++dim) {
+        step_sizes[dim] = (goal_state[dim] - current_state[dim]) / num_waypoints;
     }
-  }
   return result;
 }
 
@@ -138,8 +133,31 @@ void PlanningState::publish_trajectory(ros::Publisher &pub) {
             deltaT;
       }
     }
-    for (size_t d = 0; d < waypoint_dim; ++d) {
-      lerp_vels[(num_waypoints - 1) * waypoint_dim + d] = 0;
+    float* best_trajectory = publish_initial_trajectory ? lerp.data() : noisy_trajectories.data() + (best_trajectory_index * num_waypoints * waypoint_dim);
+    float* best_velocity = publish_initial_trajectory ? lerp_vels.data() : velocities.data() + (best_trajectory_index * num_waypoints * waypoint_dim);
+
+    trajectory_msgs::JointTrajectory msg;
+    msg.header.stamp = ros::Time::now();
+    //set all but the last point and velocity
+    trajectory_msgs::JointTrajectoryPoint point;
+    //attach initial state
+    if(!publish_initial_trajectory) {
+        for(size_t i = 0; i < waypoint_dim; ++i) {
+            point.positions.push_back(current_state[i]);
+            point.velocities.push_back((best_trajectory[i] - current_state[i]) / deltaT);
+        }
+        point.time_from_start = ros::Duration(0);
+        msg.points.push_back(point);
+        point.positions.clear();
+        point.velocities.clear();
+    }
+    for(size_t i = 0; i < num_waypoints; ++i) {
+        for(size_t j = 0; j < waypoint_dim; ++j) {
+            point.positions.push_back(best_trajectory[i*waypoint_dim + j]);
+            point.velocities.push_back(best_velocity[(i+1)*waypoint_dim + j]); //due to how velocities are computed on GPU (look-back vs look-forward)
+        }
+        point.time_from_start = ros::Duration(deltaT * i);
+        msg.points.push_back(std::move(point));
     }
   }
   float *best_trajectory =
