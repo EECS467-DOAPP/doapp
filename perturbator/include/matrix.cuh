@@ -31,14 +31,10 @@ public:
   }
 
   __host__ __device__ Slice<T> col(std::size_t j) noexcept {
-    assert(j < M);
-
     return {data_.data() + j, N, M};
   }
 
   __host__ __device__ Slice<const T> col(std::size_t j) const noexcept {
-    assert(j < M);
-
     return {data_.data() + j, N, M};
   }
 
@@ -82,14 +78,10 @@ public:
   }
 
   __host__ __device__ Slice<T> col(std::size_t j) noexcept {
-    assert(j < num_cols_);
-
     return {data_.data() + j, num_rows_, num_cols_};
   }
 
   __host__ __device__ Slice<const T> col(std::size_t j) const noexcept {
-    assert(j < num_cols_);
-
     return {data_.data() + j, num_rows_, num_cols_};
   }
 
@@ -143,14 +135,10 @@ public:
   }
 
   __host__ __device__ Slice<T> col(std::size_t j) noexcept {
-    assert(j < num_cols_);
-
     return {data_.data() + j, N, num_cols_};
   }
 
   __host__ __device__ Slice<const T> col(std::size_t j) const noexcept {
-    assert(j < num_cols_);
-
     return {data_.data() + j, N, num_cols_};
   }
 
@@ -201,14 +189,10 @@ public:
   }
 
   __host__ __device__ Slice<T> col(std::size_t j) noexcept {
-    assert(j < M);
-
     return {data_.data() + j, num_rows_, M};
   }
 
   __host__ __device__ Slice<const T> col(std::size_t j) const noexcept {
-    assert(j < M);
-
     return {data_.data() + j, num_rows_, M};
   }
 

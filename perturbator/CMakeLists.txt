@@ -1,17 +1,15 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.11)
 project(pertubator LANGUAGES CUDA CXX)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+set(CMAKE_CUDA_STANDARD 14)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED roscpp sensor_msgs)
-
+find_package(catkin REQUIRED roscpp sensor_msgs trajectory_msgs)
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(Threads REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -102,7 +100,7 @@ find_package(catkin REQUIRED roscpp sensor_msgs)
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES example
-  CATKIN_DEPENDS roscpp sensor_msgs
+  CATKIN_DEPENDS roscpp sensor_msgs trajectory_msgs
 #  DEPENDS system_lib
 )
 
@@ -122,15 +120,14 @@ include_directories(
 #   src/${PROJECT_NAME}/example.cpp
 # )
 
-add_library(perturbator SHARED src/matrix.cu src/random.cu src/trajectory.cu src/vector.cu)
+# ugly, but it works :(
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --compiler-options -march=native")
 
-add_library(trajectory_gen STATIC src/generate_trajectories.cu) # has to be static for separable compilation to link correctly (idk why)
-set_target_properties(trajectory_gen PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-target_compile_options(trajectory_gen PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>)
-
-add_library(common STATIC src/common.cu) # has to be static for separable compilation to link correctly (idk why)
-set_target_properties(common PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-target_compile_options(common PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>)
+add_library(trajectory_gen STATIC src/common.cu src/cpu_distance_grid.cu src/generate_trajectories.cu src/planning_state.cu)
+target_link_libraries(trajectory_gen PRIVATE Threads::Threads)
+target_link_libraries(trajectory_gen PUBLIC ${CUDA_curand_LIBRARY} ${catkin_LIBRARIES})
+target_include_directories(trajectory_gen PUBLIC nanoflann/include ${catkin_INCLUDE_DIRS})
+set_target_properties(trajectory_gen PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -143,22 +140,30 @@ target_compile_options(common PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:
 # add_executable(${PROJECT_NAME}_node src/example_node.cpp)
 
 add_executable(${PROJECT_NAME}_test_rand src/test_rand.cu)
-target_link_libraries(${PROJECT_NAME}_test_rand PRIVATE perturbator)
+set_target_properties(${PROJECT_NAME}_test_rand PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
+target_link_libraries(${PROJECT_NAME}_test_rand PRIVATE trajectory_gen)
 
 add_executable(${PROJECT_NAME}_test_matrix src/test_matrix.cu)
-target_link_libraries(${PROJECT_NAME}_test_matrix PRIVATE perturbator)
+set_target_properties(${PROJECT_NAME}_test_rand PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
+target_link_libraries(${PROJECT_NAME}_test_matrix PRIVATE trajectory_gen)
 
-add_executable(${PROJECT_NAME}_main src/main.cu src/planning_state.cu)
-set_target_properties(${PROJECT_NAME}_main PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(${PROJECT_NAME}_main PUBLIC ${CUDA_curand_LIBRARY} perturbator trajectory_gen common ${catkin_LIBRARIES})
+add_executable(${PROJECT_NAME}_main src/main.cu)
+set_target_properties(${PROJECT_NAME}_main PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
+target_link_libraries(${PROJECT_NAME}_main PUBLIC trajectory_gen ${catkin_LIBRARIES})
 target_compile_options(${PROJECT_NAME}_main PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>)
 
 add_executable(${PROJECT_NAME}_test_trajectory_gen src/generate_trajectories.test.cu)
-set_target_properties(${PROJECT_NAME}_test_trajectory_gen PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-target_link_libraries(${PROJECT_NAME}_test_trajectory_gen PRIVATE trajectory_gen common ${CUDA_curand_LIBRARY})
+set_target_properties(${PROJECT_NAME}_test_trajectory_gen PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
+target_link_libraries(${PROJECT_NAME}_test_trajectory_gen PRIVATE trajectory_gen)
 target_compile_options(${PROJECT_NAME}_test_trajectory_gen PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>)
 
 add_executable(${PROJECT_NAME}_device_query src/device_query.cu)
+set_target_properties(${PROJECT_NAME}_device_query PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
+
+add_executable(${PROJECT_NAME}_test_distance_grid src/test_distance_grid.cu)
+target_link_libraries(${PROJECT_NAME}_test_distance_grid PRIVATE trajectory_gen)
+set_target_properties(${PROJECT_NAME}_test_distance_grid PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use

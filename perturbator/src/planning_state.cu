@@ -2,10 +2,9 @@
 #include "planning_state.cuh"
 #include "generate_trajectories.cuh"
 #include "vector.cuh"
+
 #include "trajectory_msgs/JointTrajectory.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
-
-#include <cuda.h>
 
 PlanningState::PlanningState(unsigned int num_initial_trajectories_, unsigned int num_noise_vectors_, unsigned int num_waypoints_, unsigned int waypoint_dim_):
     num_initial_trajectories(num_initial_trajectories_), num_noise_vectors(num_noise_vectors_), num_waypoints(num_waypoints_), waypoint_dim(waypoint_dim_), _have_goal(false), trajectories(num_initial_trajectories_* num_waypoints_ * waypoint_dim_), noise_vectors(num_initial_trajectories_ * num_noise_vectors_ * waypoint_dim_), noisy_trajectories(num_initial_trajectories_ * num_noise_vectors_ * num_waypoints_ * waypoint_dim_), rngs(num_initial_trajectories_ * waypoint_dim_ * std::max(num_noise_vectors_, num_waypoints_)), velocities(num_initial_trajectories_ * num_noise_vectors_ * num_waypoints_ * waypoint_dim_), accelerations(num_initial_trajectories_ * num_noise_vectors_ * num_waypoints_ * waypoint_dim_), smoothness(num_initial_trajectories_ * num_noise_vectors_), scores(num_initial_trajectories_ * (num_noise_vectors_ + 1)), update_vectors(num_initial_trajectories_ * waypoint_dim_), flag(1), found_better(num_initial_trajectories_) {

@@ -13,7 +13,7 @@ public:
 
     explicit UniquePtr(T *ptr) noexcept : ptr_(ptr) { }
 
-    explicit UniquePtr(UniquePtr<T> &&other) noexcept : ptr_(other.ptr_) {
+    UniquePtr(UniquePtr<T> &&other) noexcept : ptr_(other.ptr_) {
         other.ptr_ = nullptr;
     }
 
