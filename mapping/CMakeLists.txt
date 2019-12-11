@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(mapping)
 
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}/cmake")
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
@@ -10,7 +12,17 @@ project(mapping)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
+  tf2
+  tf2_ros
+  tf2_eigen
+  occupancy_grid
+  pcl_ros
+  image_geometry
+  image_transport
+  depth_image_proc
 )
+
+find_package(YamlCpp REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -105,7 +117,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES mapping
- CATKIN_DEPENDS occupancy_grid
+  CATKIN_DEPENDS occupancy_grid tf2
 #  DEPENDS system_lib
 )
 
@@ -118,14 +130,20 @@ catkin_package(
 include_directories(
 # include
     ${catkin_INCLUDE_DIRS}
+    ${YAMLCPP_INCLUDE_DIR}
 )
 
 ## Declare a C++ library
-add_library(${PROJECT_NAME}
-  src/mapping.cpp
+add_executable(mapping_node
+  src/mapping_node.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+add_executable(calibration_node
+  src/calibration_node.cpp
+)
+
+target_link_libraries(mapping_node ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
+target_link_libraries(calibration_node ${catkin_LIBRARIES} ${YAMLCPP_LIBRARY})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

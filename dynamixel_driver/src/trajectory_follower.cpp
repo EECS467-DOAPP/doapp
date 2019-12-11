@@ -16,7 +16,6 @@ TrajectoryFollower::TrajectoryFollower() : port_("/dev/ttyUSB0"), protocol_(2.0)
     point.time_from_start = ros::Duration(0.0);
     current_trajectory_.points.push_back(point);
 
-
     point.positions = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     point.velocities = {1.5, 1.5, 1.5, 1.5, 1.5, 1.5};
     point.time_from_start = ros::Duration(2.0);
@@ -143,7 +142,6 @@ void TrajectoryFollower::trajectory_callback(const trajectory_msgs::JointTraject
 {
     std::lock_guard<std::mutex> lock(mtx_);
     current_trajectory_ = *trajectory_msg;
-    std::cout << "NEW TRAJECTORY WITH " << current_trajectory_.points.size() << " POINTS" << std::endl;
     prev_waypt_ = 0;
     if (current_trajectory_.points.size() > 1)
     {
