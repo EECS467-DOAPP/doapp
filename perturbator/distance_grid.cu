@@ -18,19 +18,27 @@ namespace distance_grid {
 __host__ __device__ static std::uint32_t as_u32(float f32) noexcept {
   static_assert(sizeof(float) == sizeof(std::uint32_t));
 
-  std::uint32_t u32;
-  memcpy(&u32, &f32, sizeof(float));
+  union Converter {
+    float f;
+    std::uint32_t u;
+  };
 
-  return u32;
+  Converter c = {f32};
+
+  return c.u;
 }
 
 __host__ __device__ static float as_f32(std::uint32_t u32) noexcept {
-  static_assert(sizeof(float) == sizeof(std::uint32_t));
+ static_assert(sizeof(float) == sizeof(std::uint32_t));
 
-  float f32;
-  memcpy(&f32, &u32, sizeof(float));
+  union Converter {
+    std::uint32_t u;
+    float f;
+  };
 
-  return f32;
+  Converter c = {u32};
+
+  return c.f;
 }
 
 __host__ __device__ static constexpr std::uint32_t
@@ -68,6 +76,19 @@ struct float3 {
   float z;
 };
 
+constexpr std::size_t SHARED_MEMORY_SIZE = 16 * (1 << 10);
+constexpr std::uint32_t POINTCLOUD_PARTITION_MAX_ALLOCATION =
+    SHARED_MEMORY_SIZE / 4;
+constexpr std::uint32_t POINT_SIZE = sizeof(float) * 3; // x y z
+
+constexpr std::uint32_t GRID_MAX_ALLOCATION =
+    SHARED_MEMORY_SIZE - POINTCLOUD_PARTITION_MAX_ALLOCATION;
+constexpr std::uint32_t MAX_CELLS_PER_BLOCK =
+    GRID_MAX_ALLOCATION / sizeof(float);
+
+constexpr std::uint32_t MAX_POINTS_PER_POINTCLOUD_PARTITION =
+    POINTCLOUD_PARTITION_MAX_ALLOCATION / POINT_SIZE;
+
 __global__ static void
 update_grid(Dimensions dimensions, const float3 *pointcloud, float *output,
             std::uint32_t num_points,
@@ -76,13 +97,10 @@ update_grid(Dimensions dimensions, const float3 *pointcloud, float *output,
             std::uint32_t points_to_copy_per_thread,
             std::uint32_t cells_to_write_per_thread) {
   // copy a partition of the pointcloud from global to shared memory
-
-  extern __shared__ float shared[];
-  float *const result_grid = shared;
+  __shared__ float result_grid[MAX_CELLS_PER_BLOCK];
   float *const result_grid_end = result_grid + cells_per_cell_partition;
 
-  float3 *const pointcloud_partition =
-      reinterpret_cast<float3 *>(result_grid_end);
+  __shared__ float3 pointcloud_partition[MAX_POINTS_PER_POINTCLOUD_PARTITION];
   float3 *const pointcloud_partition_end =
       pointcloud_partition + points_per_pointcloud_partition;
 
@@ -119,25 +137,30 @@ update_grid(Dimensions dimensions, const float3 *pointcloud, float *output,
   __syncthreads();
   // shared memory is filled in; compute distance grid for a subset of points
 
+  const std::uint32_t num_cells =
+      dimensions.length * dimensions.width * dimensions.height;
+
   const float x_offset =
       -0.5f * static_cast<float>(dimensions.length) * dimensions.resolution;
   const float y_offset =
       -0.5f * static_cast<float>(dimensions.width) * dimensions.resolution;
 
-  const std::uint32_t cell_offset = cells_per_cell_partition * blockIdx.y;
-  const std::uint32_t this_thread_cell_offset =
-      cell_offset + cells_to_write_per_thread * threadIdx.x;
-  const std::uint32_t num_cells =
-      dimensions.length * dimensions.height * dimensions.width;
+  const std::uint32_t block_cell_index_begin =
+      cells_per_cell_partition * blockIdx.y;
+  const std::uint32_t block_cell_index_end =
+      min(block_cell_index_begin + cells_per_cell_partition, num_cells);
 
-  for (std::uint32_t cell_index = this_thread_cell_offset;
-       cell_index < cell_offset + cells_to_write_per_thread &&
-       cell_index < num_cells;
-       ++cell_index) {
-    const std::uint32_t z_index =
-        cell_index / (dimensions.length * dimensions.width);
+  const std::uint32_t thread_cell_index_begin =
+      block_cell_index_begin + cells_to_write_per_thread * threadIdx.x;
+  const std::uint32_t thread_cell_index_end =
+      min(thread_cell_index_begin + cells_to_write_per_thread,
+          block_cell_index_end);
+
+  for (std::uint32_t i = thread_cell_index_begin; i < thread_cell_index_end;
+       ++i) {
+    const std::uint32_t z_index = i / (dimensions.length * dimensions.width);
     const std::uint32_t slice_index =
-        cell_index % (dimensions.length * dimensions.width);
+        i % (dimensions.length * dimensions.width);
 
     const std::uint32_t y_index = slice_index / dimensions.length;
     const std::uint32_t x_index = slice_index % dimensions.length;
@@ -152,29 +175,39 @@ update_grid(Dimensions dimensions, const float3 *pointcloud, float *output,
 
     for (float3 *point = pointcloud_partition; point < pointcloud_partition_end;
          ++point) {
-      const float point_x = point->x;
-      const float point_y = point->y;
-      const float point_z = point->z;
-
       const float new_distance_sq =
-          square(point_x - x) + square(point_y - y) + square(point_z - z);
+          square(x - point->x) + square(y - point->y) + square(z - point->z);
       cell_value_sq = min(cell_value_sq, new_distance_sq);
     }
 
-    result_grid[cell_index] = std::sqrt(cell_value_sq);
+    result_grid[i - block_cell_index_begin] = std::sqrt(cell_value_sq);
   }
 
-  const std::uint32_t this_thread_cell_last =
-      min(this_thread_cell_offset + cells_to_write_per_thread,
-          cells_per_cell_partition);
-
-  volatile float *global_write_head =
+  float *const output_end =
+      output + dimensions.length * dimensions.width * dimensions.height;
+  float *const cell_output_begin =
       output + cells_per_cell_partition * blockIdx.y;
-  const float *shared_read_head = result_grid;
+  float *const cell_output_end =
+      min(cell_output_begin + cells_per_cell_partition, output_end);
 
-  for (std::uint32_t i = this_thread_cell_offset; i < this_thread_cell_last;
-       ++i) {
-    atomic_min(&global_write_head[i], shared_read_head[i]);
+  float *const this_thread_cell_begin =
+      cell_output_begin + cells_to_write_per_thread * threadIdx.x;
+  float *const this_thread_cell_end =
+      min(this_thread_cell_begin + cells_to_write_per_thread, cell_output_end);
+
+  const float *const this_thread_shared_cell_begin =
+      result_grid + cells_to_write_per_thread * threadIdx.x;
+  const float *const this_thread_shared_cell_end =
+      min(this_thread_shared_cell_begin + cells_to_write_per_thread,
+          static_cast<const float *>(result_grid_end));
+
+  volatile float *write_head = this_thread_cell_begin;
+  const float *read_head = this_thread_shared_cell_begin;
+
+  for (; write_head < this_thread_cell_end &&
+         read_head < this_thread_shared_cell_end;
+       ++write_head, ++read_head) {
+    atomic_min(write_head, *read_head);
   }
 }
 
@@ -206,35 +239,20 @@ DistanceGrid::DistanceGrid(const distance_grid::Dimensions &dimensions) noexcept
 void DistanceGrid::update(const Matrix<float, Dynamic, 3> &pointcloud) {
   std::fill(distances_.data(), distances_.data() + distances_.size(),
             HUGE_VALF);
-
-  constexpr std::uint32_t SHARED_MEMORY_SIZE = 48 * (1 << 10);
-
-  constexpr std::uint32_t POINTCLOUD_PARTITION_MAX_ALLOCATION =
-      SHARED_MEMORY_SIZE / 4;
-  constexpr std::uint32_t POINT_SIZE = sizeof(float) * 3; // x y z
-
-  constexpr std::uint32_t MAX_POINTS_PER_POINTCLOUD_PARTITION =
-      POINTCLOUD_PARTITION_MAX_ALLOCATION / POINT_SIZE;
-
   const std::uint32_t num_pointcloud_partitions =
       distance_grid::divide_towards_positive_infinity(
           static_cast<std::uint32_t>(pointcloud.num_rows()),
-          MAX_POINTS_PER_POINTCLOUD_PARTITION);
+          distance_grid::MAX_POINTS_PER_POINTCLOUD_PARTITION);
   const std::uint32_t points_per_pointcloud_partition =
       distance_grid::divide_towards_positive_infinity(
           static_cast<std::uint32_t>(pointcloud.num_rows()),
           num_pointcloud_partitions);
 
-  constexpr std::uint32_t GRID_MAX_ALLOCATION =
-      SHARED_MEMORY_SIZE - POINTCLOUD_PARTITION_MAX_ALLOCATION;
-  constexpr std::uint32_t MAX_CELLS_PER_BLOCK =
-      GRID_MAX_ALLOCATION / sizeof(float);
-
   const std::uint32_t num_cells =
       dimensions_.length * dimensions_.width * dimensions_.height;
   const std::uint32_t num_cell_partitions =
-      distance_grid::divide_towards_positive_infinity(num_cells,
-                                                      MAX_CELLS_PER_BLOCK);
+      distance_grid::divide_towards_positive_infinity(
+          num_cells, distance_grid::MAX_CELLS_PER_BLOCK);
   const std::uint32_t cells_per_cell_partition =
       distance_grid::divide_towards_positive_infinity(num_cells,
                                                       num_cell_partitions);
@@ -248,12 +266,15 @@ void DistanceGrid::update(const Matrix<float, Dynamic, 3> &pointcloud) {
       distance_grid::divide_towards_positive_infinity(cells_per_cell_partition,
                                                       BLOCK_SIZE);
 
+  const auto pointcloud_ptr =
+      reinterpret_cast<const distance_grid::float3 *>(pointcloud.data());
+  float *const output = distances_.data();
+  const auto num_points = static_cast<std::uint32_t>(pointcloud.num_rows());
+
   distance_grid::
       update_grid<<<dim3(num_pointcloud_partitions, num_cell_partitions, 1),
-                    BLOCK_SIZE, SHARED_MEMORY_SIZE>>>(
-          dimensions_,
-          reinterpret_cast<const distance_grid::float3 *>(pointcloud.data()),
-          distances_.data(), static_cast<std::uint32_t>(pointcloud.num_rows()),
+                    BLOCK_SIZE, distance_grid::SHARED_MEMORY_SIZE>>>(
+          dimensions_, pointcloud_ptr, output, num_points,
           points_per_pointcloud_partition, cells_per_cell_partition,
           points_to_copy_per_thread, cells_to_write_per_thread);
 
