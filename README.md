@@ -1,5 +1,22 @@
 # DOAPP &mdash; Dynamic Object Avoidance and Path Planning
 
+# How to run: Open 3 terminals
+```bash
+roslaunch dynamixel-driver trajetory_follower.launch
+```
+```bash
+rosrun pertubator pertubator_main
+```
+```bash
+rosrun task main
+```
+
+if main does not print publishing, it may need a "go" message of encouragement.
+```bash
+rostopic pub -1 /go std_msgs/Empty "{}"
+```
+
+
 ## Note: Setting up Dynamixel Workbench on ROS Melodic Morenia
 The [official Dynamixel Workbench Wiki](http://emanual.robotis.com/docs/en/software/dynamixel/dynamixel_workbench/) does not tell us exactly how to install Dynamixel Workbench on ROS. However, for Ubuntu 18.04 LTS and ROS Melodic Morenia, Dynamixel Workbench can be installed with the following command:
 ```bash
