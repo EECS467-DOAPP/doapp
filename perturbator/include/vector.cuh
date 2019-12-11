@@ -95,13 +95,13 @@ public:
   __host__ __device__ T &operator[](std::size_t i) noexcept {
     assert(i < N);
 
-    return data_[i];
+    return data()[i];
   }
 
   __host__ __device__ const T &operator[](std::size_t i) const noexcept {
     assert(i < N);
 
-    return data_[i];
+    return data()[i];
   }
 
   __host__ __device__ std::size_t size() const noexcept { return N; }

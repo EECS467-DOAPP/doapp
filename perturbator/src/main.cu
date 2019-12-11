@@ -1,7 +1,8 @@
-#include "planning_state.cuh"
-#include "gpu_error_check.cuh"
-#include "generate_trajectories.cuh"
 #include "common.cuh"
+#include "cpu_distance_grid.cuh"
+#include "generate_trajectories.cuh"
+#include "gpu_error_check.cuh"
+#include "planning_state.cuh"
 #include "vector.cuh"
 
 #include "ros/ros.h"
@@ -14,13 +15,13 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "motion_planner");
     ros::NodeHandle node_handle;
 
-
+    const doapp::cpu_distance_grid::Dimensions grid_dims = {100, 100, 100, 0.01f};
 
     unsigned int k = 1000, n = 50, m = 50, d = 5; //TODO: have m be calculated from 1024/(n*d)
     m = 1024 / n / d;
     //also TODO: have k, n, m, d be grabbed from ParamServer
     std::cout << "Running with k = " << k << ", n = " << n << ", m = " << m << std::endl;
-    PlanningState planning_state(k, m, n, d);
+    PlanningState planning_state(k, m, n, d, grid_dims);
 
     ros::Subscriber state_subscriber = node_handle.subscribe("joint_states", 1, &PlanningState::updateArmState, &planning_state);
     ros::Subscriber goal_subscriber = node_handle.subscribe("goal_state", 1, &PlanningState::updateGoalState, &planning_state); //don't really want to buffer old requests
