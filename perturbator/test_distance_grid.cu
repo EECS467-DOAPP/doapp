@@ -1,5 +1,4 @@
 #include "cpu_distance_grid.cuh"
-#include "distance_grid.cuh"
 #include "matrix.cuh"
 #include "random.cuh"
 

@@ -5,7 +5,7 @@ set(CMAKE_CUDA_STANDARD 11)
 
 find_package(Threads REQUIRED)
 
-add_library(perturbator SHARED distance_grid.cu cpu_distance_grid.cu)
+add_library(perturbator SHARED cpu_distance_grid.cu)
 target_link_libraries(perturbator PRIVATE Threads::Threads)
 target_include_directories(perturbator PUBLIC nanoflann/include)
 set_target_properties(perturbator PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_SEPARABLE_COMPILATION ON)
