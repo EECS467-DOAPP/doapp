@@ -41,6 +41,11 @@
         </visual>
     </link>
 
+    <joint name="base" type="fixed">
+        <parent link="arm_bundle"/>
+        <child link="base_link"/>
+    </joint>
+
     <link name="base_servo_link">
         <visual>
             <!-- shoulder mx-28 -->
