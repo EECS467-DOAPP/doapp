@@ -150,6 +150,10 @@ sensor_msgs::JointState TrajectoryFollower::follow_trajectory() {
   auto now = ros::Time::now();
   state.header.stamp = now;
 
+
+    state.name = {"base_servo",  "shoulder_servo",     "elbow_servo",
+                  "wrist_servo", "wrist_rotate_servo", "gripper_servo"};
+  
   const auto traj_start = current_trajectory_.header.stamp;
   const auto prev_time =
       traj_start + current_trajectory_.points[prev_waypt_].time_from_start;
@@ -166,8 +170,6 @@ sensor_msgs::JointState TrajectoryFollower::follow_trajectory() {
         std::min(1.0, current_duration.toSec() / segment_duration.toSec());
     state.position.reserve(joints_.num_joints);
 
-    state.name = {"base_servo",  "shoulder_servo",     "elbow_servo",
-                  "wrist_servo", "wrist_rotate_servo", "gripper_servo"};
 
     const auto &prev_point = current_trajectory_.points[prev_waypt_];
     const auto &next_point = current_trajectory_.points[next_waypt_];

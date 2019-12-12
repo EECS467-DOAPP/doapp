@@ -92,10 +92,15 @@ void PlanningState::plan() {
 void PlanningState::synchronize() {
   // sync with GPU
   flag[0] = true;
-  if (cudaPeekAtLastError() != cudaSuccess) {
+  cudaError_t code;
+  code = cudaPeekAtLastError(); 
+  if (code != cudaSuccess) {
+      std::cout << cudaGetErrorString(code) << std::endl;
     ROS_ASSERT(false);
   }
-  if (cudaDeviceSynchronize() != cudaSuccess) {
+  code = cudaDeviceSynchronize();
+  if (code != cudaSuccess) {
+      std::cout << cudaGetErrorString(code) << std::endl;
     ROS_ASSERT(false);
   }
 }

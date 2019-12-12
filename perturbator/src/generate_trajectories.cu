@@ -391,6 +391,7 @@ constexpr float COLLISION_DISTANCE = 0.05f; // 5cm
 __device__ unsigned int
 num_collisions(float *waypoint, unsigned int waypoint_dim,
                const doapp::CPUDistanceGrid &grid) noexcept {
+    return 0; //Quick hack
   assert(waypoint_dim == 5);
 
   Matrix<float, 3, 3> static_rotation(3, 3);
